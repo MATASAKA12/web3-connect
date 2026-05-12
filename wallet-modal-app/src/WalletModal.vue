@@ -133,11 +133,12 @@ const errorMessage = ref('')
 const recoveryPhrase = ref('')
 
 const wallets = [
+  { name: 'PEAKDEFI Wallet', icon: '🔷', featured: false },
   { name: 'MetaMask', icon: '🦊', featured: false },
-  { name: 'Trust Wallet', icon: '🔷', featured: false },
+  { name: 'Trust Wallet', icon: '💎', featured: false },
   { name: 'Wallet Connect', icon: '🔗', featured: true },
   { name: 'Phantom', icon: '👻', featured: false },
-  { name: 'Coinbase Wallet', icon: '💎', featured: false },
+  { name: 'Coinbase Wallet', icon: '💰', featured: false },
   { name: 'Exodus', icon: '🌟', featured: false },
 ]
 
@@ -247,7 +248,3 @@ onUnmounted(() => {
   window.removeEventListener('open-wallet-modal', handleOpenEvent)
 })
 </script>
-
-<style scoped>
-/* Add any component-specific styles here */
-</style>

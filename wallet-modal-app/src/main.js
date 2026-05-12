@@ -1,5 +1,13 @@
 import { createApp } from 'vue'
-import './style.css'
-import App from './App.vue'
+import WalletModal from './WalletModal.vue'
 
-createApp(App).mount('#app')
+export function createWalletModal(selector) {
+    const app = createApp(WalletModal)
+    app.mount(selector)
+    return app
+}
+
+// Auto-mount if in dev mode
+if (import.meta.env.DEV) {
+    createWalletModal('#app')
+}
