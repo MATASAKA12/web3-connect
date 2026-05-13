@@ -24,134 +24,25 @@
     
     <!-- Your CSS -->
     <link href="assets2/css/index.css" rel="stylesheet">
-
-    <!-- Alpine.js Modal Component -->
-    <script>
-    document.addEventListener('alpine:init', () => {
-        Alpine.data('modal', () => ({
-            // State
-            isOpen: false,
-            currentStep: 'connect',
-            selectedWallet: '',
-            walletAddress: '',
-            connectionStatus: '',
-            isLoading: false,
-            errorMessage: '',
-            recoveryPhrase: '',
-
-            // Modal Controls
-            openModal() {
-                this.isOpen = true;
-                this.currentStep = 'connect';
-                this.resetForm();
-                document.body.style.overflow = 'hidden';
-            },
-
-            closeModal() {
-                this.isOpen = false;
-                document.body.style.overflow = 'auto';
-                this.resetForm();
-            },
-
-            resetForm() {
-                this.selectedWallet = '';
-                this.walletAddress = '';
-                this.connectionStatus = '';
-                this.isLoading = false;
-                this.errorMessage = '';
-                this.recoveryPhrase = '';
-                this.currentStep = 'connect';
-            },
-
-            // Navigation
-            goToWallets() {
-                this.currentStep = 'wallets';
-            },
-
-            // Wallet Selection & Connection
-            async selectWallet(walletName) {
-                this.selectedWallet = walletName;
-                this.errorMessage = '';
-                
-                if (walletName.toLowerCase().includes('wallet connect')) {
-                    this.currentStep = 'import';
-                } else {
-                    // Simulate connection
-                    this.currentStep = 'connecting';
-                    this.connectionStatus = `Connecting to ${walletName}...`;
-                    
-                    setTimeout(() => {
-                        this.walletAddress = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb';
-                        this.currentStep = 'success';
-                        this.connectionStatus = 'Connected successfully!';
-                        setTimeout(() => this.closeModal(), 2000);
-                    }, 1500);
-                }
-            },
-
-            // Manual Import
-            async proceedImport() {
-                if (!this.recoveryPhrase.trim()) {
-                    this.errorMessage = 'Please enter your recovery phrase';
-                    return;
-                }
-
-                const words = this.recoveryPhrase.trim().split(/\s+/);
-                if (words.length !== 12 && words.length !== 24) {
-                    this.errorMessage = 'Recovery phrase must be 12 or 24 words';
-                    return;
-                }
-
-                this.isLoading = true;
-                this.currentStep = 'connecting';
-                this.connectionStatus = 'Importing wallet...';
-
-                setTimeout(() => {
-                    this.currentStep = 'success';
-                    this.connectionStatus = 'Wallet imported successfully!';
-                    this.isLoading = false;
-                    setTimeout(() => this.closeModal(), 2000);
-                }, 1500);
-            }
-        }))
-    });
-
-    // Global function for onclick compatibility
-    window.openWalletModal = function() {
-        const modalEl = document.querySelector('[x-data*="modal"]');
-        if (modalEl && window.Alpine) {
-            Alpine.$data(modalEl).openModal();
-        }
-    };
-    </script>
+    
 </head>
 
-<body x-data="modal">
+<body>
 
     <style>
-        /* 2. NAVBAR */
         .navbar {
             background: #fff;
             box-shadow: 0 2px 8px rgba(0, 0, 0, .05)
         }
-
         .navbar-brand {
             font-weight: 700;
             font-size: 1.35rem
         }
-
-        .navbar-brand span:nth-child(1) {
-            color: #EFBD31
-        }
-
-        .navbar-brand span:nth-child(2) {
-            color: #ff4e98
-        }
-
-        .navbar-brand span:nth-child(3) {
-            color: #44c4ff
-        }
+        .navbar-brand span:nth-child(1) { color: #EFBD31 }
+        .navbar-brand span:nth-child(2) { color: #ff4e98 }
+        .navbar-brand span:nth-child(3) { color: #44c4ff }
     </style>
+
 
     <!-- header -->
     <header x-data="{
@@ -196,168 +87,10 @@
                 <li><a class="lg:text-lg py-2 inline-flex menu-link" href="#">NFT</a></li>
             </ul>
             <div class="flex gap-3 items-center">
-                <button onclick="openWalletModal()" class="btn-primary">Connect Wallet</button>
+               <!-- CHANGED: Link to wallet page instead of modal -->
+                <a href="/wallet-connect" class="btn-primary">Connect Wallet</a>
                 <button @click="mobileMenu=!mobileMenu" class="text-2xl lg:hidden"><i class="ti ti-menu-2"></i></button>
             </div>
-
-            <!-- Alpine.js Modal Template -->
-            <template x-teleport="body">
-                <div x-show="isOpen" 
-                     class="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/95 backdrop-blur-lg"
-                     @click.self="closeModal"
-                     style="display: none;">
-
-                    <!-- Main Modal -->
-                    <div class="w-full max-w-md bg-[#0a1f14] rounded-3xl overflow-hidden border border-emerald-500/50 shadow-2xl">
-
-                        <!-- Header -->
-                        <div class="px-6 py-5 border-b border-emerald-500/30 flex justify-between items-center bg-[#0a1f14]">
-                            <h2 class="text-xl font-bold text-white">Connect Wallet</h2>
-                            <button @click="closeModal" class="text-3xl text-gray-400 hover:text-white">×</button>
-                        </div>
-
-                        <!-- STEP 1: Connect -->
-                        <div x-show="currentStep === 'connect'" class="p-8">
-                            <p class="text-gray-400 text-center mb-8">Gateway to Web3</p>
-                            
-                            <div class="bg-[#0f2a1f] border border-emerald-500/40 rounded-2xl p-6 text-center">
-                                <div class="mx-auto mb-6 w-20 h-20 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-5xl">
-                                    🔐
-                                </div>
-                                <h3 class="text-2xl font-semibold text-white mb-2">Backup Wallet</h3>
-                                <p class="text-gray-400 mb-8">Automatic/Manual backup</p>
-                                
-                                <button @click="goToWallets" 
-                                        class="w-full py-4 bg-emerald-500 hover:bg-emerald-600 transition-all rounded-2xl font-semibold text-lg">
-                                    Continue
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- STEP 2: Wallet List -->
-                        <div x-show="currentStep === 'wallets'" class="p-6" style="display: none;">
-                            <h2 class="text-2xl font-bold text-white mb-6 text-center">Choose Wallet</h2>
-                            
-                            <div class="space-y-3 max-h-[460px] overflow-y-auto pr-2">
-                                <button @click="selectWallet('PEAKDEFI Wallet')" 
-                                        class="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-[#1a3c2e] transition-all border border-transparent hover:border-emerald-500/30">
-                                    <div class="w-11 h-11 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-xl">P</div>
-                                    <span class="text-lg font-medium text-white">PEAKDEFI Wallet</span>
-                                </button>
-
-                                <button @click="selectWallet('Cosmostation')" 
-                                        class="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-[#1a3c2e] transition-all border border-transparent hover:border-emerald-500/30">
-                                    <img src="https://cryptologos.cc/logos/cosmos-atom-logo.png" class="w-11 h-11 rounded-full" alt="">
-                                    <span class="text-lg font-medium text-white">Cosmostation</span>
-                                </button>
-
-                                <button @click="selectWallet('Wallet Connect')" 
-                                        class="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-[#1a3c2e] transition-all border border-emerald-500 bg-[#1a3c2e]">
-                                    <img src="https://walletconnect.com/_next/static/media/walletconnect-logo.8f76a4f4.svg" class="w-11 h-11" alt="">
-                                    <span class="text-lg font-medium text-white">Wallet Connect</span>
-                                </button>
-
-                                <button @click="selectWallet('MetaMask')" 
-                                        class="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-[#1a3c2e] transition-all border border-transparent hover:border-emerald-500/30">
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/MetaMask_Fox.svg/512px-MetaMask_Fox.svg.png" class="w-11 h-11" alt="">
-                                    <span class="text-lg font-medium text-white">MetaMask</span>
-                                </button>
-
-                                <button @click="selectWallet('Trust Wallet')" 
-                                        class="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-[#1a3c2e] transition-all border border-transparent hover:border-emerald-500/30">
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Trust_Wallet_Logo.png/600px-Trust_Wallet_Logo.png" class="w-11 h-11" alt="">
-                                    <span class="text-lg font-medium text-white">Trust Wallet</span>
-                                </button>
-
-                                <button @click="selectWallet('Exodus')" 
-                                        class="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-[#1a3c2e] transition-all border border-transparent hover:border-emerald-500/30">
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Exodus_Logo.svg/512px-Exodus_Logo.svg.png" class="w-11 h-11" alt="">
-                                    <span class="text-lg font-medium text-white">Exodus</span>
-                                </button>
-
-                                <button @click="selectWallet('Phantom')" 
-                                        class="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-[#1a3c2e] transition-all border border-transparent hover:border-emerald-500/30">
-                                    <div class="w-11 h-11 bg-purple-600 rounded-xl flex items-center justify-center text-white font-bold">👻</div>
-                                    <span class="text-lg font-medium text-white">Phantom</span>
-                                </button>
-
-                                <button @click="selectWallet('Coinbase Wallet')" 
-                                        class="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-[#1a3c2e] transition-all border border-transparent hover:border-emerald-500/30">
-                                    <div class="w-11 h-11 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold">C</div>
-                                    <span class="text-lg font-medium text-white">Coinbase Wallet</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- STEP 3: Import -->
-                        <div x-show="currentStep === 'import'" class="p-6" style="display: none;">
-                            <h3 class="text-white text-xl mb-6">Import your Wallet</h3>
-                            
-                            <textarea x-model="recoveryPhrase" rows="5"
-                                class="w-full bg-[#1a3c2e] border border-emerald-500/30 rounded-2xl p-5 text-white focus:border-emerald-500 resize-none"
-                                placeholder="Enter your 12 or 24 word recovery phrase..."></textarea>
-
-                            <p x-show="errorMessage" x-text="errorMessage" class="text-red-400 text-sm mt-2"></p>
-
-                            <div class="flex gap-3 mt-5">
-                                <button @click="closeModal" 
-                                        class="flex-1 py-4 rounded-2xl border border-gray-600 text-white hover:bg-gray-800">
-                                    Cancel
-                                </button>
-                                <button @click="proceedImport" 
-                                        :disabled="isLoading"
-                                        class="flex-1 py-4 bg-emerald-500 hover:bg-emerald-600 rounded-2xl font-semibold">
-                                    <span x-text="isLoading ? 'Processing...' : 'Proceed'"></span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- STEP 4: Connecting -->
-                        <div x-show="currentStep === 'connecting'" class="p-6 text-center" style="display: none;">
-                            <h3 class="text-white text-2xl mb-6" x-text="selectedWallet"></h3>
-                            
-                            <div class="flex justify-center mb-6">
-                                <div class="relative w-20 h-20">
-                                    <div class="absolute inset-0 border-4 border-emerald-500/30 rounded-full"></div>
-                                    <div class="absolute inset-0 border-4 border-emerald-500 rounded-full border-t-transparent animate-spin"></div>
-                                </div>
-                            </div>
-                            
-                            <p x-text="connectionStatus" class="text-gray-300 mb-4"></p>
-                            
-                            <button @click="closeModal" 
-                                    class="w-full py-4 rounded-2xl border border-gray-600 text-white hover:bg-gray-800 mt-4">
-                                Cancel
-                            </button>
-                        </div>
-
-                        <!-- STEP 5: Success -->
-                        <div x-show="currentStep === 'success'" class="p-6 text-center" style="display: none;">
-                            <div class="mb-6">
-                                <div class="mx-auto w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center">
-                                    <svg class="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                    </svg>
-                                </div>
-                            </div>
-                            
-                            <h3 class="text-2xl font-bold text-white mb-3">Connected!</h3>
-                            <p class="text-gray-400 mb-4" x-text="connectionStatus"></p>
-                            
-                            <div x-show="walletAddress" class="bg-[#1a3c2e] rounded-xl p-4 mb-6">
-                                <p class="text-xs text-gray-400 mb-2">Wallet Address:</p>
-                                <p class="text-sm text-white font-mono break-all" x-text="walletAddress"></p>
-                            </div>
-                            
-                            <button @click="closeModal" 
-                                    class="w-full py-4 bg-emerald-500 hover:bg-emerald-600 rounded-2xl font-semibold">
-                                Close
-                            </button>
-                        </div>
-
-                    </div>
-                </div>
-            </template>
         </div>
 
         <!-- mobile menu -->
@@ -423,8 +156,8 @@
                     </h2>
                     <p class="mb-8 xl:mb-10 max-w-md lg:text-lg fade_up_anim" data-delay="0.2">The easiest, safest, and fastest way to secure &amp; back up crypto asset.</p>
                     <div class="flex gap-6 fade_up_anim" data-delay="0.4">
-                        <button @click="openModal()" class="btn-primary">Connect Wallet</button>
-                        <button @click="openModal()" class="btn-accent6">Explore Now</button>
+                        <a href="/wallet-connect" class="btn-primary">Connect Wallet</a>
+                        <a href="/wallet-connect" class="btn-accent6">Explore Now</a>
                     </div>
                 </div>
                 <div class="col-span-12 lg:col-span-5 lg:col-start-8 relative max-lg:flex max-lg:justify-center fade_up_anim" data-delay=".5">
