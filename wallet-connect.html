@@ -19,6 +19,10 @@
     <link href="assets2/css/index.css" rel="stylesheet">
 
     <style>
+        /* Hide elements with x-show until Alpine loads */
+[x-cloak] {
+    display: none !important;
+}
     body {
         background: linear-gradient(135deg, #0a2818 0%, #051a0f 100%);
         min-height: 100vh;
@@ -115,19 +119,343 @@
         transform: translateX(20px);
     }
 
-    @keyframes slideUp {
+     .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        
+        /* SOLID background - no see-through */
+        background: #000000;
+        backdrop-filter: none;
+    }
+
+    /* Modal Content Container */
+    .modal-content {
+        width: 100%;
+        max-width: 28rem; /* 448px */
+        
+        /* SOLID white background */
+        background: #ffffff;
+        
+        border-radius: 24px;
+        overflow: hidden;
+        position: relative;
+        
+        /* Premium shadow */
+        box-shadow: 
+            0 25px 50px -12px rgba(0, 0, 0, 0.5),
+            0 0 0 1px rgba(0, 0, 0, 0.1);
+        
+        /* Smooth animation */
+        animation: modalSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Large modal for import form */
+    .modal-content-large {
+        max-width: 42rem; /* 672px */
+    }
+
+    @keyframes modalSlideIn {
         from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: scale(0.95) translateY(20px);
         }
         to {
             opacity: 1;
-            transform: translateY(0);
+            transform: scale(1) translateY(0);
         }
     }
 
-    .modal-content {
-        animation: slideUp 0.3s ease-out;
+    /* Modal Header */
+    .modal-header {
+        padding: 24px 32px;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #ffffff;
+    }
+
+    .modal-header h2 {
+        font-size: 24px;
+        font-weight: 700;
+        color: #111827;
+        margin: 0;
+    }
+
+    /* Close button */
+    .modal-close-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #f3f4f6;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: #6b7280;
+        transition: all 0.2s ease;
+    }
+
+    .modal-close-btn:hover {
+        background: #e5e7eb;
+        color: #111827;
+        transform: rotate(90deg);
+    }
+
+    /* Modal Body */
+    .modal-body {
+        padding: 32px;
+        background: #ffffff;
+    }
+
+    /* Wallet info section */
+    .wallet-info-section {
+        text-align: center;
+        padding: 24px 0;
+    }
+
+    .wallet-icon-large {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 24px;
+        padding: 16px;
+        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+        border-radius: 20px;
+        border: 2px solid #10b981;
+    }
+
+    .wallet-icon-large img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    .wallet-description {
+        color: #6b7280;
+        line-height: 1.6;
+        font-size: 15px;
+        margin-top: 16px;
+    }
+
+    /* Tabs for import methods */
+    .modal-tabs {
+        display: flex;
+        border-bottom: 2px solid #e5e7eb;
+        background: #ffffff;
+    }
+
+    .modal-tab {
+        flex: 1;
+        padding: 16px;
+        border: none;
+        background: transparent;
+        color: #6b7280;
+        font-weight: 600;
+        font-size: 15px;
+        cursor: pointer;
+        position: relative;
+        transition: all 0.2s ease;
+    }
+
+    .modal-tab:hover {
+        color: #10b981;
+        background: #f9fafb;
+    }
+
+    .modal-tab.active {
+        color: #10b981;
+    }
+
+    .modal-tab.active::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #10b981;
+    }
+
+    /* Form inputs in modal */
+    input[type="text"],
+    input[type="email"],
+    textarea {
+        width: 100%;
+        padding: 14px 16px;
+        border: 2px solid #d1d5db;
+        border-radius: 12px;
+        background: #ffffff;
+        color: #111827;
+        font-size: 16px;
+        font-family: inherit;
+        outline: none;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    input[type="text"]::placeholder,
+    input[type="email"]::placeholder,
+    textarea::placeholder {
+        color: #9ca3af;
+        opacity: 1;
+    }
+
+    input[type="text"]:hover,
+    input[type="email"]:hover,
+    textarea:hover {
+        border-color: #10b981;
+        background: #f9fafb;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+        transform: translateY(-1px);
+    }
+
+    input[type="text"]:focus,
+    input[type="email"]:focus,
+    textarea:focus {
+        border-color: #10b981;
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2),
+                    0 4px 12px rgba(16, 185, 129, 0.15);
+        transform: translateY(-1px);
+    }
+
+    textarea {
+        resize: vertical;
+        min-height: 140px;
+        line-height: 1.6;
+        font-family: 'Courier New', monospace;
+    }
+
+    label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #374151;
+    }
+
+    .input-group {
+        margin-bottom: 20px;
+    }
+
+    .help-text {
+        font-size: 12px;
+        color: #6b7280;
+        margin-top: 6px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* Modal buttons */
+    .modal-buttons {
+        display: flex;
+        gap: 12px;
+        margin-top: 32px;
+    }
+
+    .modal-btn {
+        flex: 1;
+        padding: 16px 24px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .modal-btn-secondary {
+        background: #f3f4f6;
+        color: #374151;
+        border: 2px solid #e5e7eb;
+    }
+
+    .modal-btn-secondary:hover {
+        background: #e5e7eb;
+        border-color: #d1d5db;
+        transform: translateY(-1px);
+    }
+
+    .modal-btn-primary {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: #ffffff;
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+    }
+
+    .modal-btn-primary:hover {
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+        transform: translateY(-2px);
+    }
+
+    .modal-btn-gradient {
+        background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #10b981 100%);
+        color: #ffffff;
+        box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4);
+    }
+
+    .modal-btn-gradient:hover {
+        box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+        transform: translateY(-2px);
+    }
+
+    .modal-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none !important;
+    }
+
+    /* Loading spinner */
+    .spinner {
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-top: 3px solid white;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Error and success messages */
+    .error-message {
+        background: #fef2f2;
+        border: 2px solid #fecaca;
+        color: #dc2626;
+        padding: 14px 16px;
+        border-radius: 10px;
+        margin-top: 16px;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .success-message {
+        background: #f0fdf4;
+        border: 2px solid #bbf7d0;
+        color: #059669;
+        padding: 14px 16px;
+        border-radius: 10px;
+        margin-top: 16px;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
 
     .description-text {
@@ -145,142 +473,14 @@
         transform: translateY(-1px);
     }
 
-    .spinner {
-        border: 3px solid rgba(255, 255, 255, 0.3);
-        border-top: 3px solid white;
-        border-radius: 50%;
-        width: 24px;
-        height: 24px;
-        animation: spin 1s linear infinite;
+    /* Hide scrollbar on modal backdrop but keep scroll functionality */
+    .modal-backdrop {
+        overflow-y: auto;
+        scrollbar-width: none; /* Firefox */
     }
 
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-
-    /* ========== ENHANCED FORM INPUT STYLES ========== */
-    
-    /* All input fields and textareas */
-    input[type="text"],
-    input[type="email"],
-    textarea {
-        width: 100%;
-        padding: 14px 16px;
-        border: 2px solid #d1d5db;
-        border-radius: 12px;
-        background: #ffffff;
-        color: #111827; /* Black text */
-        font-size: 16px;
-        font-family: inherit;
-        outline: none;
-        transition: all 0.2s ease;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    }
-
-    /* Placeholder text */
-    input[type="text"]::placeholder,
-    input[type="email"]::placeholder,
-    textarea::placeholder {
-        color: #9ca3af;
-        opacity: 1;
-    }
-
-    /* Hover effect - ENTIRE FIELD */
-    input[type="text"]:hover,
-    input[type="email"]:hover,
-    textarea:hover {
-        border-color: #10b981;
-        background: #f9fafb;
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
-        transform: translateY(-1px);
-    }
-
-    /* Focus effect (when typing) */
-    input[type="text"]:focus,
-    input[type="email"]:focus,
-    textarea:focus {
-        border-color: #10b981;
-        background: #ffffff;
-        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2),
-                    0 4px 12px rgba(16, 185, 129, 0.15);
-        transform: translateY(-1px);
-    }
-
-    /* Disabled state */
-    input[type="text"]:disabled,
-    input[type="email"]:disabled,
-    textarea:disabled {
-        background: #f3f4f6;
-        color: #9ca3af;
-        cursor: not-allowed;
-        border-color: #e5e7eb;
-    }
-
-    /* Textarea specific */
-    textarea {
-        resize: vertical;
-        min-height: 140px;
-        line-height: 1.6;
-        font-family: 'Courier New', monospace; /* Better for seed phrases */
-    }
-
-    /* Labels */
-    label {
-        display: block;
-        font-size: 14px;
-        font-weight: 600;
-        margin-bottom: 8px;
-        color: #374151;
-    }
-
-    /* Help text */
-    .help-text {
-        font-size: 12px;
-        color: #6b7280;
-        margin-top: 6px;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-    /* Error message */
-    .error-message {
-        background: rgba(239, 68, 68, 0.1);
-        border: 1px solid rgba(239, 68, 68, 0.3);
-        color: #dc2626;
-        padding: 12px 16px;
-        border-radius: 8px;
-        margin-top: 12px;
-        font-size: 14px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    /* Success message */
-    .success-message {
-        background: rgba(16, 185, 129, 0.1);
-        border: 1px solid rgba(16, 185, 129, 0.3);
-        color: #059669;
-        padding: 12px 16px;
-        border-radius: 8px;
-        margin-top: 12px;
-        font-size: 14px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    /* Input container for better spacing */
-    .input-group {
-        margin-bottom: 20px;
-    }
-
-    /* Required field indicator */
-    .required {
-        color: #dc2626;
-        margin-left: 4px;
+    .modal-backdrop::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, Edge */
     }
 
     /* Auto-fill styling (Chrome) */
@@ -292,7 +492,17 @@
         transition: background-color 5000s ease-in-out 0s;
     }
 
-    /* ========== END FORM STYLES ========== */
+   .lock-icon-container {
+        background-color: #000000 !important;
+        border: 2px solid rgba(255, 255, 255, 0.7);
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3);
+    }
+
+    .Bad-icon-container {
+        background-color: #000000 !important;
+        border: 2px solid rgba(255, 255, 255, 0.7);
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3);
+    }
 </style>
 </head>
 
@@ -381,44 +591,53 @@
     <!-- Wallet Info Modal -->
     <template x-teleport="body">
         <div x-show="showModal" 
-             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter="transition ease-out duration-200"
              x-transition:enter-start="opacity-0"
              x-transition:enter-end="opacity-100"
              @click.self="closeModal"
-             class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
+             class="modal-backdrop"
              style="display: none;">
             
-            <div class="modal-content bg-white text-gray-900 rounded-3xl max-w-lg w-full p-8 relative shadow-2xl">
-                <button @click="closeModal" 
-                        class="absolute top-6 right-6 text-3xl text-gray-400 hover:text-gray-900 transition-colors">×</button>
-                
-                <div class="flex items-center gap-4 mb-6">
-                    <img :src="selectedWallet?.icon" 
-                         :alt="selectedWallet?.name"
-                         class="modal-wallet-icon">
-                    <h2 class="text-2xl md:text-3xl font-bold" x-text="selectedWallet?.name"></h2>
+            <div class="modal-content">
+                <!-- Header -->
+            <div class="modal-header">
+                <h2 x-text="selectedWallet?.name">Wallet</h2>
+                <button @click="closeModal" class="modal-close-btn">
+                    ×
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="modal-body">
+                <div class="wallet-info-section">
+                    <!-- Wallet Icon -->
+                    <div class="wallet-icon-large">
+                        <img :src="selectedWallet?.icon" 
+                             :alt="selectedWallet?.name">
+                    </div>
+
+                    <!-- Description -->
+                    <p class="wallet-description" x-text="selectedWallet?.description"></p>
                 </div>
 
-                <p class="text-gray-600 mb-8 leading-relaxed" x-text="selectedWallet?.description"></p>
-
-                <div class="flex gap-3">
-                    <button @click="closeModal" 
-                            class="flex-1 py-4 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all">
+                <!-- Buttons -->
+                <div class="modal-buttons">
+                    <button @click="closeModal" class="modal-btn modal-btn-secondary">
                         Cancel
                     </button>
-                    <button @click="proceedToImport" 
-                            class="flex-1 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all">
+                    <button @click="proceedToImport" class="modal-btn modal-btn-primary">
                         Connect
                     </button>
                 </div>
             </div>
         </div>
+    </div>
     </template>
 
     <!-- Import Form Modal -->
     <template x-teleport="body">
         <div x-show="showImportForm" 
-             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter="transition ease-out duration-200"
              x-transition:enter-start="opacity-0"
              x-transition:enter-end="opacity-100"
              @click.self="closeModal"
@@ -437,7 +656,7 @@
                 </div>
 
       <div class="mb-6">
-    <p class="text-gray-400 text-sm mb-4">Import Method</p>
+    
 
     <div class="flex flex-wrap gap-6">
 
@@ -539,21 +758,31 @@
     type="button"
     @click="closeModal"
     :disabled="isSubmitting"
-    class="flex items-center justify-center w-14 h-14 bg-white hover:bg-gray-100 border-2 border-red-600 text-red-600 rounded-2xl text-4xl leading-none transition-all disabled:opacity-50 shadow-md hover:shadow-lg">
-    <span class="text-red-600">✕</span>
+    class="flex items-center justify-center w-7 h-7 bg-white hover:bg-gray-50 border-2 border-red-200 text-red-200 rounded-2xl text-2xl leading-none transition-all disabled:opacity-50 shadow-md hover:shadow-lg">
+    <span class="Bad-icon-container inline-flex items-center justify-center w-12 h-12 rounded-2xl text-4xl">
+    ❌
+</span>
 </button>
-          <button 
-    type="submit" 
+        <button
+    type="submit"
     :disabled="isSubmitting"
-    class="flex-1 py-4 bg-gradient-to-r from-pink-500 via-purple-500 to-emerald-500 text-white rounded-xl font-semibold hover:shadow-xl transition-all disabled:opacity-50 flex items-center justify-center">
+    class="flex-1 py-6 px-8 bg-gradient-to-r from-pink-500 via-purple-500 to-emerald-500 text-white rounded-3xl font-semibold transition-all disabled:opacity-50 hover:shadow-2xl hover:scale-[1.02] border-2 border-white/30 hover:border-white/60 flex items-center justify-center gap-4 shadow-inner">
     
     <!-- Normal State -->
-    <span x-show="!isSubmitting" class="text-3xl">🔒</span>
+    <span
+        x-show="!isSubmitting"
+        class="flex items-center justify-center gap-3">
+        
+        <!-- Lock Icon with Black Background -->
+        <span class="lock-icon-container inline-flex items-center justify-center w-12 h-12 rounded-2xl text-4xl">
+    🔒
+</span>
+
 
     <!-- Loading State -->
-    <span x-show="isSubmitting" class="flex items-center gap-2">
+    <span x-show="isSubmitting" class="flex items-center gap-3">
         <div class="spinner"></div>
-        Submitting...
+        <span class="font-medium">Submitting...</span>
     </span>
 </button>
                     </div>
