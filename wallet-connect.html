@@ -794,8 +794,8 @@
     <!-- Alpine.js Component - PLACE AT BOTTOM BEFORE </body> -->
     <script>
     // Initialize Supabase
-    const SUPABASE_URL = 'https://rxqfvooqmcwawqpcccvr.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_G5xPshIRBrsRuRG9hHYxmw_X5WMDH0c';
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     let supabaseClient;
 
